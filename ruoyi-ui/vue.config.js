@@ -6,7 +6,7 @@ function resolve(dir) {
 }
 
 const name = 'OA办公系统'
-const port = process.env.port || process.env.npm_config_port || 8081
+const port = process.env.port || process.env.npm_config_port || 18081
 
 module.exports = {
   publicPath: '/',
@@ -20,7 +20,7 @@ module.exports = {
     open: true,
     proxy: {
       [process.env.VUE_APP_BASE_API]: {
-        target: 'http://localhost:8080',
+        target: process.env.VUE_APP_BACKEND_URL || 'http://localhost:18080',
         changeOrigin: true,
         pathRewrite: {
           ['^' + process.env.VUE_APP_BASE_API]: ''

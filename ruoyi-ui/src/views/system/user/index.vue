@@ -121,6 +121,15 @@
         </el-row>
         <el-row :gutter="20">
           <el-col :span="24">
+            <el-form-item label="岗位" prop="postIds">
+              <el-select v-model="form.postIds" multiple placeholder="请选择岗位" style="width:100%">
+                <el-option v-for="item in postOptions" :key="item.postId" :label="item.postName" :value="item.postId" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="24">
             <el-form-item label="角色" prop="roleIds">
               <el-select v-model="form.roleIds" multiple placeholder="请选择角色">
                 <el-option
@@ -175,6 +184,7 @@ export default {
         email: '',
         status: '0',
         deptId: undefined,
+        postIds: [],
         roleIds: []
       },
       rules: {
@@ -183,6 +193,7 @@ export default {
         password: [{ required: true, message: '请输入用户密码', trigger: 'blur' }]
       },
       deptOptions: [],
+      postOptions: [],
       roleOptions: []
     }
   },
@@ -272,6 +283,10 @@ export default {
         this.deptOptions = this.buildDeptTree(res.data || [])
       }).catch(() => {})
 
+      request({ url: '/system/post/list', method: 'get', params: { pageSize: 100 } }).then(res => {
+        this.postOptions = res.rows || []
+      }).catch(() => {})
+
       request({ url: '/system/role/list', method: 'get', params: { pageSize: 100 } }).then(res => {
         this.roleOptions = res.rows || []
       }).catch(() => {})
@@ -326,6 +341,7 @@ export default {
         email: '',
         status: '0',
         deptId: undefined,
+        postIds: [],
         roleIds: []
       }
       if (this.$refs.form) {

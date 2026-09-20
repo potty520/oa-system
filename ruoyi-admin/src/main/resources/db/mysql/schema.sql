@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS sys_role (
   role_name VARCHAR(30) NOT NULL,
   role_key VARCHAR(100) NOT NULL,
   role_sort INT DEFAULT 0,
+  data_scope CHAR(1) DEFAULT '1',
   status CHAR(1) DEFAULT '0',
   create_by VARCHAR(64) DEFAULT '',
   create_time DATETIME,
@@ -96,6 +97,59 @@ CREATE TABLE IF NOT EXISTS sys_role_menu (
   menu_id BIGINT NOT NULL,
   PRIMARY KEY (role_id, menu_id)
 );
+
+CREATE TABLE IF NOT EXISTS sys_post (
+  post_id BIGINT AUTO_INCREMENT NOT NULL,
+  post_code VARCHAR(64) NOT NULL,
+  post_name VARCHAR(50) NOT NULL,
+  post_sort INT DEFAULT 0,
+  status CHAR(1) DEFAULT '0',
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (post_id),
+  CONSTRAINT uk_sys_post_uk_post_code UNIQUE (post_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
+CREATE TABLE IF NOT EXISTS sys_user_post (
+  user_id BIGINT NOT NULL,
+  post_id BIGINT NOT NULL,
+  PRIMARY KEY (user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_role_dept (
+  role_id BIGINT NOT NULL,
+  dept_id BIGINT NOT NULL,
+  PRIMARY KEY (role_id, dept_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_oper_log (
+  log_id BIGINT AUTO_INCREMENT NOT NULL,
+  title VARCHAR(100) DEFAULT '',
+  business_type VARCHAR(20) DEFAULT 'OTHER',
+  method VARCHAR(500) DEFAULT '',
+  request_method VARCHAR(10) DEFAULT '',
+  operator_name VARCHAR(64) DEFAULT '',
+  oper_url VARCHAR(500) DEFAULT '',
+  oper_ip VARCHAR(128) DEFAULT '',
+  oper_param TEXT,
+  json_result TEXT,
+  status CHAR(1) DEFAULT '0',
+  error_msg TEXT,
+  oper_time DATETIME,
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (log_id),
+  KEY idx_sys_oper_log_idx_oper_time (oper_time),
+  KEY idx_sys_oper_log_idx_operator_name (operator_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
 
 CREATE TABLE IF NOT EXISTS oa_announcement (
   ann_id BIGINT AUTO_INCREMENT NOT NULL,
@@ -232,11 +286,49 @@ CREATE TABLE IF NOT EXISTS oa_reimbursement_approve_log (
   KEY idx_oa_reimbursement_approve_log_idx_reimb_id (reimb_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
 
+CREATE TABLE IF NOT EXISTS oa_doc_type (
+  doc_type_id BIGINT AUTO_INCREMENT NOT NULL,
+  type_name VARCHAR(100) NOT NULL,
+  type_code VARCHAR(50) NOT NULL,
+  parent_id BIGINT DEFAULT 0,
+  sort_order INT DEFAULT 0,
+  status CHAR(1) DEFAULT '0',
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (doc_type_id),
+  CONSTRAINT uk_oa_doc_type_uk_type_code UNIQUE (type_code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
+CREATE TABLE IF NOT EXISTS oa_doc_template (
+  template_id BIGINT AUTO_INCREMENT NOT NULL,
+  template_name VARCHAR(100) NOT NULL,
+  doc_type CHAR(1) DEFAULT '2',
+  red_header_text VARCHAR(200) DEFAULT '',
+  title_font VARCHAR(100) DEFAULT 'SimSun',
+  title_size INT DEFAULT 22,
+  body_font VARCHAR(100) DEFAULT 'FangSong',
+  body_size INT DEFAULT 16,
+  template_content TEXT,
+  status CHAR(1) DEFAULT '0',
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (template_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
 CREATE TABLE IF NOT EXISTS oa_incoming_doc (
   doc_id BIGINT AUTO_INCREMENT NOT NULL,
   doc_number VARCHAR(100) NOT NULL,
   doc_title VARCHAR(200) NOT NULL,
   doc_type_id BIGINT,
+  template_id BIGINT,
   source_unit VARCHAR(200) DEFAULT '',
   receive_date DATE,
   doc_level CHAR(1) DEFAULT '1',
@@ -262,6 +354,7 @@ CREATE TABLE IF NOT EXISTS oa_outgoing_doc (
   doc_number VARCHAR(100) NOT NULL,
   doc_title VARCHAR(200) NOT NULL,
   doc_type_id BIGINT,
+  template_id BIGINT,
   draft_unit VARCHAR(200) DEFAULT '',
   draft_date DATE,
   doc_level CHAR(1) DEFAULT '1',
@@ -316,6 +409,87 @@ CREATE TABLE IF NOT EXISTS oa_doc_flow_step (
   KEY idx_oa_doc_flow_step_idx_flow_id (flow_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
 
+CREATE TABLE IF NOT EXISTS oa_doc_approval (
+  approval_id BIGINT AUTO_INCREMENT NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type CHAR(1) NOT NULL,
+  flow_id BIGINT,
+  step_id BIGINT,
+  user_id BIGINT,
+  user_name VARCHAR(50) DEFAULT '',
+  approve_result CHAR(1),
+  approve_remark VARCHAR(500) DEFAULT '',
+  approve_time DATETIME,
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (approval_id),
+  KEY idx_oa_doc_approval_idx_doc (doc_id, doc_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
+CREATE TABLE IF NOT EXISTS oa_doc_circulation (
+  circulation_id BIGINT AUTO_INCREMENT NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type CHAR(1) NOT NULL,
+  user_id BIGINT NOT NULL,
+  user_name VARCHAR(50) DEFAULT '',
+  read_status CHAR(1) DEFAULT '0',
+  read_time DATETIME,
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (circulation_id),
+  KEY idx_oa_doc_circulation_idx_doc (doc_id, doc_type),
+  KEY idx_oa_doc_circulation_idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
+CREATE TABLE IF NOT EXISTS oa_doc_reminder (
+  reminder_id BIGINT AUTO_INCREMENT NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type CHAR(1) NOT NULL,
+  from_user_id BIGINT,
+  from_user_name VARCHAR(50) DEFAULT '',
+  to_user_id BIGINT,
+  to_user_name VARCHAR(50) DEFAULT '',
+  reminder_content VARCHAR(500) DEFAULT '',
+  reminder_time DATETIME,
+  status CHAR(1) DEFAULT '0',
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (reminder_id),
+  KEY idx_oa_doc_reminder_idx_doc (doc_id, doc_type),
+  KEY idx_oa_doc_reminder_idx_to_user (to_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
+CREATE TABLE IF NOT EXISTS oa_doc_archive (
+  archive_id BIGINT AUTO_INCREMENT NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type CHAR(1) NOT NULL,
+  archive_code VARCHAR(100) DEFAULT '',
+  archive_time DATETIME,
+  archive_user_id BIGINT,
+  archive_user_name VARCHAR(50) DEFAULT '',
+  archive_location VARCHAR(200) DEFAULT '',
+  remark VARCHAR(500) DEFAULT '',
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  PRIMARY KEY (archive_id),
+  KEY idx_oa_doc_archive_idx_doc (doc_id, doc_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
 
 
 -- System seed data
@@ -331,14 +505,24 @@ INSERT IGNORE INTO sys_user (user_id, username, password, nickname, dept_id, sta
 (2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', 103, '0', CURRENT_TIMESTAMP),
 (3, 'lisi', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '李四', 102, '0', CURRENT_TIMESTAMP);
 
-INSERT IGNORE INTO sys_role (role_id, role_name, role_key, role_sort, status) VALUES
-(1, '超级管理员', 'admin', 1, '0'),
-(2, '普通用户', 'common', 2, '0'),
-(3, '部门经理', 'manager', 3, '0');
+INSERT IGNORE INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES
+(1, '超级管理员', 'admin', 1, '1', '0'),
+(2, '普通用户', 'common', 2, '5', '0'),
+(3, '部门经理', 'manager', 3, '4', '0');
 
 INSERT IGNORE INTO sys_user_role (user_id, role_id) VALUES
 (1, 1),
 (2, 2),
+(3, 2);
+
+INSERT IGNORE INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES
+(1, 'admin', '系统管理员', 1, '0'),
+(2, 'manager', '部门经理', 2, '0'),
+(3, 'staff', '普通员工', 3, '0');
+
+INSERT IGNORE INTO sys_user_post (user_id, post_id) VALUES
+(1, 1),
+(2, 3),
 (3, 2);
 
 INSERT IGNORE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES
@@ -355,7 +539,13 @@ INSERT IGNORE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, com
 (50, '收文管理', 1, 5, 'incoming-doc', 'oa/incoming-doc/index', 'C', '0', '0', 'oa:incomingDoc:list', 'log'),
 (60, '发文管理', 1, 6, 'outgoing-doc', 'oa/outgoing-doc/index', 'C', '0', '0', 'oa:outgoingDoc:list', 'send'),
 (70, '流程配置', 1, 7, 'doc-flow', 'oa/doc-flow/index', 'C', '0', '0', 'oa:docFlow:list', 'guide'),
-(80, '我的待办', 1, 8, 'todo', 'oa/todo/index', 'C', '0', '0', 'oa:todo:list', 'dashboard');
+(80, '我的待办', 1, 8, 'todo', 'oa/todo/index', 'C', '0', '0', 'oa:todo:list', 'dashboard'),
+(90, '公文中心', 1, 9, 'doc-center', 'oa/doc-center/index', 'C', '0', '0', 'oa:doc:list', 'document'),
+(91, '公文办理', 90, 1, '', NULL, 'F', '0', '0', 'oa:doc:action', '#'),
+(92, '公文类型', 90, 2, '', NULL, 'F', '0', '0', 'oa:docType:list', '#'),
+(100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting'),
+(101, '岗位管理', 100, 1, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard'),
+(102, '操作日志', 100, 2, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
 
 INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1),
@@ -372,6 +562,12 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 60),
 (1, 70),
 (1, 80),
+(1, 90),
+(1, 91),
+(1, 92),
+(1, 100),
+(1, 101),
+(1, 102),
 (2, 1),
 (2, 10),
 (2, 20),
@@ -380,4 +576,6 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 40),
 (2, 50),
 (2, 60),
-(2, 80);
+(2, 80),
+(2, 90),
+(2, 91);

@@ -60,6 +60,7 @@ CREATE TABLE sys_role (
   role_name   VARCHAR(30) NOT NULL COMMENT '角色名称',
   role_key    VARCHAR(100) NOT NULL COMMENT '角色权限字符串',
   role_sort   INT DEFAULT 0 COMMENT '显示顺序',
+  data_scope  CHAR(1) DEFAULT '1' COMMENT '数据范围（1全部 2自定义 3本部门 4本部门及以下 5本人）',
   status      CHAR(1) DEFAULT '0' COMMENT '状态（0正常 1停用）',
   create_by   VARCHAR(64) DEFAULT '' COMMENT '创建者',
   create_time DATETIME DEFAULT NULL COMMENT '创建时间',
@@ -105,6 +106,63 @@ CREATE TABLE sys_role_menu (
   menu_id BIGINT NOT NULL COMMENT '菜单ID',
   PRIMARY KEY (role_id, menu_id)
 ) ENGINE=InnoDB COMMENT='角色和菜单关联表';
+
+-- 岗位信息表
+CREATE TABLE sys_post (
+  post_id     BIGINT NOT NULL AUTO_INCREMENT COMMENT '岗位ID',
+  post_code   VARCHAR(64) NOT NULL COMMENT '岗位编码',
+  post_name   VARCHAR(50) NOT NULL COMMENT '岗位名称',
+  post_sort   INT DEFAULT 0 COMMENT '显示顺序',
+  status      CHAR(1) DEFAULT '0' COMMENT '状态（0正常 1停用）',
+  create_by   VARCHAR(64) DEFAULT '' COMMENT '创建者',
+  create_time DATETIME DEFAULT NULL COMMENT '创建时间',
+  update_by   VARCHAR(64) DEFAULT '' COMMENT '更新者',
+  update_time DATETIME DEFAULT NULL COMMENT '更新时间',
+  del_flag    CHAR(1) DEFAULT '0' COMMENT '删除标志',
+  remark      VARCHAR(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (post_id),
+  UNIQUE KEY uk_post_code (post_code)
+) ENGINE=InnoDB COMMENT='岗位信息表';
+
+-- 用户和岗位关联表
+CREATE TABLE sys_user_post (
+  user_id BIGINT NOT NULL COMMENT '用户ID',
+  post_id BIGINT NOT NULL COMMENT '岗位ID',
+  PRIMARY KEY (user_id, post_id)
+) ENGINE=InnoDB COMMENT='用户和岗位关联表';
+
+-- 角色和部门关联表
+CREATE TABLE sys_role_dept (
+  role_id BIGINT NOT NULL COMMENT '角色ID',
+  dept_id BIGINT NOT NULL COMMENT '部门ID',
+  PRIMARY KEY (role_id, dept_id)
+) ENGINE=InnoDB COMMENT='角色和部门关联表';
+
+-- 操作日志表
+CREATE TABLE sys_oper_log (
+  log_id         BIGINT NOT NULL AUTO_INCREMENT COMMENT '日志ID',
+  title          VARCHAR(100) DEFAULT '' COMMENT '模块标题',
+  business_type  VARCHAR(20) DEFAULT 'OTHER' COMMENT '业务类型',
+  method         VARCHAR(500) DEFAULT '' COMMENT '方法名称',
+  request_method VARCHAR(10) DEFAULT '' COMMENT '请求方式',
+  operator_name  VARCHAR(64) DEFAULT '' COMMENT '操作人员',
+  oper_url       VARCHAR(500) DEFAULT '' COMMENT '请求URL',
+  oper_ip        VARCHAR(128) DEFAULT '' COMMENT '主机地址',
+  oper_param     TEXT COMMENT '请求参数',
+  json_result    TEXT COMMENT '返回参数',
+  status         CHAR(1) DEFAULT '0' COMMENT '操作状态（0正常 1异常）',
+  error_msg      TEXT COMMENT '错误消息',
+  oper_time      DATETIME DEFAULT NULL COMMENT '操作时间',
+  create_by      VARCHAR(64) DEFAULT '' COMMENT '创建者',
+  create_time    DATETIME DEFAULT NULL COMMENT '创建时间',
+  update_by      VARCHAR(64) DEFAULT '' COMMENT '更新者',
+  update_time    DATETIME DEFAULT NULL COMMENT '更新时间',
+  del_flag       CHAR(1) DEFAULT '0' COMMENT '删除标志',
+  remark         VARCHAR(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (log_id),
+  KEY idx_oper_time (oper_time),
+  KEY idx_operator_name (operator_name)
+) ENGINE=InnoDB COMMENT='操作日志表';
 
 -- ============================================================
 -- 3. OA业务表
@@ -409,12 +467,34 @@ CREATE TABLE oa_doc_type (
   UNIQUE KEY uk_type_code (type_code)
 ) ENGINE=InnoDB COMMENT='公文类型表';
 
+-- 公文模板表
+CREATE TABLE oa_doc_template (
+  template_id       BIGINT NOT NULL AUTO_INCREMENT COMMENT '模板ID',
+  template_name     VARCHAR(100) NOT NULL COMMENT '模板名称',
+  doc_type          CHAR(1) DEFAULT '2' COMMENT '适用类型（1收文 2发文）',
+  red_header_text   VARCHAR(200) DEFAULT '' COMMENT '红头文字',
+  title_font        VARCHAR(100) DEFAULT 'SimSun' COMMENT '标题字体',
+  title_size        INT DEFAULT 22 COMMENT '标题字号',
+  body_font         VARCHAR(100) DEFAULT 'FangSong' COMMENT '正文字体',
+  body_size         INT DEFAULT 16 COMMENT '正文字号',
+  template_content  TEXT COMMENT '模板内容',
+  status            CHAR(1) DEFAULT '0' COMMENT '状态（0启用 1停用）',
+  create_by         VARCHAR(64) DEFAULT '' COMMENT '创建者',
+  create_time       DATETIME DEFAULT NULL COMMENT '创建时间',
+  update_by         VARCHAR(64) DEFAULT '' COMMENT '更新者',
+  update_time       DATETIME DEFAULT NULL COMMENT '更新时间',
+  del_flag          CHAR(1) DEFAULT '0' COMMENT '删除标志',
+  remark            VARCHAR(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (template_id)
+) ENGINE=InnoDB COMMENT='公文模板表';
+
 -- 收文登记表
 CREATE TABLE oa_incoming_doc (
   doc_id            BIGINT NOT NULL AUTO_INCREMENT COMMENT '收文ID',
   doc_number        VARCHAR(100) NOT NULL COMMENT '收文编号',
   doc_title         VARCHAR(200) NOT NULL COMMENT '收文标题',
   doc_type_id       BIGINT DEFAULT NULL COMMENT '公文类型ID',
+  template_id       BIGINT DEFAULT NULL COMMENT '模板ID',
   source_unit       VARCHAR(200) DEFAULT '' COMMENT '来文单位',
   receive_date      DATE DEFAULT NULL COMMENT '收文日期',
   doc_level         CHAR(1) DEFAULT '1' COMMENT '紧急程度（1普通 2重要 3紧急）',
@@ -441,6 +521,7 @@ CREATE TABLE oa_outgoing_doc (
   doc_number        VARCHAR(100) NOT NULL COMMENT '发文编号',
   doc_title         VARCHAR(200) NOT NULL COMMENT '发文标题',
   doc_type_id       BIGINT DEFAULT NULL COMMENT '公文类型ID',
+  template_id       BIGINT DEFAULT NULL COMMENT '模板ID',
   draft_unit        VARCHAR(200) DEFAULT '' COMMENT '拟稿单位',
   draft_date        DATE DEFAULT NULL COMMENT '拟稿日期',
   doc_level         CHAR(1) DEFAULT '1' COMMENT '紧急程度（1普通 2重要 3紧急）',
@@ -599,10 +680,19 @@ INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status) VA
 (3, 'lisi', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '李四', 102, '0');
 
 -- 角色
-INSERT INTO sys_role (role_id, role_name, role_key, role_sort, status) VALUES
-(1, '超级管理员', 'admin', 1, '0'),
-(2, '普通用户', 'common', 2, '0'),
-(3, '部门经理', 'manager', 3, '0');
+INSERT INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES
+(1, '超级管理员', 'admin', 1, '1', '0'),
+(2, '普通用户', 'common', 2, '5', '0'),
+(3, '部门经理', 'manager', 3, '4', '0');
+
+-- 岗位
+INSERT INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES
+(1, 'admin', '系统管理员', 1, '0'),
+(2, 'manager', '部门经理', 2, '0'),
+(3, 'staff', '普通员工', 3, '0');
+
+-- 用户岗位关联
+INSERT INTO sys_user_post VALUES (1, 1), (2, 3), (3, 2);
 
 -- 用户角色关联
 INSERT INTO sys_user_role VALUES (1, 1), (2, 2), (3, 2);
@@ -631,16 +721,22 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 -- 流程
 (70, '流程配置', 1, 7, 'doc-flow', 'oa/doc-flow/index', 'C', '0', '0', 'oa:docFlow:list', 'guide'),
 -- 待办
-(80, '我的待办', 1, 8, 'todo', 'oa/todo/index', 'C', '0', '0', 'oa:todo:list', 'dashboard');
+(80, '我的待办', 1, 8, 'todo', 'oa/todo/index', 'C', '0', '0', 'oa:todo:list', 'dashboard'),
+(90, '公文中心', 1, 9, 'doc-center', 'oa/doc-center/index', 'C', '0', '0', 'oa:doc:list', 'document'),
+(91, '公文办理', 90, 1, '', NULL, 'F', '0', '0', 'oa:doc:action', '#'),
+(92, '公文类型', 90, 2, '', NULL, 'F', '0', '0', 'oa:docType:list', '#'),
+(100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting'),
+(101, '岗位管理', 100, 1, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard'),
+(102, '操作日志', 100, 2, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
 
 -- 角色菜单关联（管理员拥有所有权限）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1), (1, 10), (1, 11), (1, 12), (1, 13), (1, 20), (1, 30), (1, 31), (1, 32),
-(1, 40), (1, 50), (1, 60), (1, 70), (1, 80);
+(1, 40), (1, 50), (1, 60), (1, 70), (1, 80), (1, 90), (1, 91), (1, 92), (1, 100), (1, 101), (1, 102);
 
 -- 普通用户菜单（只有查看和自己的操作）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(2, 1), (2, 10), (2, 20), (2, 30), (2, 31), (2, 40), (2, 50), (2, 60), (2, 80);
+(2, 1), (2, 10), (2, 20), (2, 30), (2, 31), (2, 40), (2, 50), (2, 60), (2, 80), (2, 90), (2, 91);
 
 -- 默认公告
 INSERT IGNORE INTO oa_announcement (ann_id, ann_title, ann_type, ann_content, ann_level, is_public, status, create_by, create_time) VALUES

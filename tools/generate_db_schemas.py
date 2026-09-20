@@ -21,6 +21,8 @@ ACTIVE_TABLES = {
     "oa_announcement", "oa_schedule", "oa_leave", "oa_reimbursement",
     "oa_reimbursement_detail", "oa_reimbursement_approve_log", "oa_incoming_doc",
     "oa_outgoing_doc", "oa_doc_flow", "oa_doc_flow_step",
+    "sys_post", "sys_user_post", "sys_role_dept", "sys_oper_log",
+    "oa_doc_type", "oa_doc_template", "oa_doc_approval", "oa_doc_circulation", "oa_doc_reminder", "oa_doc_archive",
 }
 
 
@@ -112,12 +114,18 @@ SEEDS: dict[str, tuple[list[str], list[tuple]]] = {
         (2, "zhangsan", PASSWORD_HASH, "张三", 103, "0", NOW),
         (3, "lisi", PASSWORD_HASH, "李四", 102, "0", NOW),
     ]),
-    "sys_role": (["role_id", "role_name", "role_key", "role_sort", "status"], [
-        (1, "超级管理员", "admin", 1, "0"),
-        (2, "普通用户", "common", 2, "0"),
-        (3, "部门经理", "manager", 3, "0"),
+    "sys_role": (["role_id", "role_name", "role_key", "role_sort", "data_scope", "status"], [
+        (1, "超级管理员", "admin", 1, "1", "0"),
+        (2, "普通用户", "common", 2, "5", "0"),
+        (3, "部门经理", "manager", 3, "4", "0"),
     ]),
     "sys_user_role": (["user_id", "role_id"], [(1, 1), (2, 2), (3, 2)]),
+    "sys_post": (["post_id", "post_code", "post_name", "post_sort", "status"], [
+        (1, "admin", "系统管理员", 1, "0"),
+        (2, "manager", "部门经理", 2, "0"),
+        (3, "staff", "普通员工", 3, "0"),
+    ]),
+    "sys_user_post": (["user_id", "post_id"], [(1, 1), (2, 3), (3, 2)]),
     "sys_menu": (["menu_id", "menu_name", "parent_id", "order_num", "path", "component", "menu_type", "visible", "status", "perms", "icon"], [
         (1, "OA办公", 0, 1, "oa", None, "M", "0", "0", None, "documentation"),
         (10, "公告管理", 1, 1, "announcement", "oa/announcement/index", "C", "0", "0", "oa:announcement:list", "message"),
@@ -133,10 +141,16 @@ SEEDS: dict[str, tuple[list[str], list[tuple]]] = {
         (60, "发文管理", 1, 6, "outgoing-doc", "oa/outgoing-doc/index", "C", "0", "0", "oa:outgoingDoc:list", "send"),
         (70, "流程配置", 1, 7, "doc-flow", "oa/doc-flow/index", "C", "0", "0", "oa:docFlow:list", "guide"),
         (80, "我的待办", 1, 8, "todo", "oa/todo/index", "C", "0", "0", "oa:todo:list", "dashboard"),
+        (90, "公文中心", 1, 9, "doc-center", "oa/doc-center/index", "C", "0", "0", "oa:doc:list", "document"),
+        (91, "公文办理", 90, 1, "", None, "F", "0", "0", "oa:doc:action", "#"),
+        (92, "公文类型", 90, 2, "", None, "F", "0", "0", "oa:docType:list", "#"),
+        (100, "系统管理", 0, 2, "system", None, "M", "0", "0", None, "setting"),
+        (101, "岗位管理", 100, 1, "post", "system/post/index", "C", "0", "0", "system:post:list", "postcard"),
+        (102, "操作日志", 100, 2, "log", "system/log/index", "C", "0", "0", "system:log:list", "document-checked"),
     ]),
     "sys_role_menu": (["role_id", "menu_id"], [
-        (1, 1), (1, 10), (1, 11), (1, 12), (1, 13), (1, 20), (1, 30), (1, 31), (1, 32), (1, 40), (1, 50), (1, 60), (1, 70), (1, 80),
-        (2, 1), (2, 10), (2, 20), (2, 30), (2, 31), (2, 40), (2, 50), (2, 60), (2, 80),
+        (1, 1), (1, 10), (1, 11), (1, 12), (1, 13), (1, 20), (1, 30), (1, 31), (1, 32), (1, 40), (1, 50), (1, 60), (1, 70), (1, 80), (1, 90), (1, 91), (1, 92), (1, 100), (1, 101), (1, 102),
+        (2, 1), (2, 10), (2, 20), (2, 30), (2, 31), (2, 40), (2, 50), (2, 60), (2, 80), (2, 90), (2, 91),
     ]),
 }
 

@@ -22,7 +22,7 @@ public class OaTodoController extends BaseController {
     public TableDataInfo list(OaTodo todo) {
         startPage();
         Long userId = SecurityUtils.getUserId();
-        List<OaTodo> list = todoService.selectTodoList(userId, todo.getTodoTitle(), todo.getStatus());
+        List<OaTodo> list = todoService.selectTodoList(userId, SecurityUtils.getUsername(), todo.getTodoTitle(), todo.getStatus());
         return getDataTable(list);
     }
 

@@ -23,6 +23,8 @@ public class OaOutgoingDoc extends BaseEntity {
     private String docTitle;
     
     private Long docTypeId;
+
+    private Long templateId;
     
     private String draftUnit;
     

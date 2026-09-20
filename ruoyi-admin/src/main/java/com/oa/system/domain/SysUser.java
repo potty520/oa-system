@@ -47,4 +47,6 @@ public class SysUser extends BaseEntity {
 
     @TableField(exist = false)
     private List<Long> roleIds = new ArrayList<>();
+    @TableField(exist = false)
+    private List<Long> postIds = new ArrayList<>();
 }

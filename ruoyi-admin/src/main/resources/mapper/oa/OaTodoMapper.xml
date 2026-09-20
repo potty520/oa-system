@@ -26,6 +26,20 @@
                    CASE WHEN approval_status = '1' THEN '0' ELSE '1' END, reimb_id
             FROM oa_reimbursement
             WHERE user_id = #{userId} AND del_flag = '0'
+            UNION ALL
+            SELECT doc_id, 'incoming_doc', doc_title, COALESCE(summary, ''),
+                   COALESCE(handler_name, create_by), create_time,
+                   CASE WHEN status IN ('0','1') THEN '0' ELSE '1' END, doc_id
+            FROM oa_incoming_doc
+            WHERE del_flag = '0' AND status IN ('0','1')
+              AND (handler_id = #{userId} OR handler_id IS NULL OR #{userId} = 1)
+            UNION ALL
+            SELECT doc_id, 'outgoing_doc', doc_title, COALESCE(summary, ''),
+                   COALESCE(sign_user_name, create_by), create_time,
+                   CASE WHEN status IN ('0','1') THEN '0' ELSE '1' END, doc_id
+            FROM oa_outgoing_doc
+            WHERE del_flag = '0' AND status IN ('0','1')
+              AND (sign_user_id = #{userId} OR create_by = #{userName} OR #{userId} = 1)
         ) t
         <where>
             <if test="todoTitleLike != null and todoTitleLike != ''">
@@ -45,6 +59,14 @@
             UNION ALL
             SELECT reimb_id FROM oa_reimbursement
             WHERE user_id = #{userId} AND approval_status = '1' AND del_flag = '0'
+            UNION ALL
+            SELECT doc_id FROM oa_incoming_doc
+            WHERE status IN ('0','1') AND del_flag = '0'
+              AND (handler_id = #{userId} OR handler_id IS NULL OR #{userId} = 1)
+            UNION ALL
+            SELECT doc_id FROM oa_outgoing_doc
+            WHERE status IN ('0','1') AND del_flag = '0'
+              AND (sign_user_id = #{userId} OR #{userId} = 1)
         ) t
     </select>
 </mapper>

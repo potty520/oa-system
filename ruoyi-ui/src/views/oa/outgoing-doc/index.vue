@@ -19,7 +19,7 @@
       <el-table-column label="签发人" prop="signUserName" width="100" align="center" />
       <el-table-column label="操作" min-width="220" align="center">
         <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">查看</el-button>
+          <el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">查看</el-button><el-button size="mini" type="text" icon="el-icon-sort" @click="openAction(scope.row)">流程</el-button>
           <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
           <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
           <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-s-promotion" @click="handleSubmit(scope.row)">提交审核</el-button>
@@ -65,21 +65,24 @@
         <el-descriptions-item label="内容摘要" :span="2">{{ viewData.summary }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
+    <doc-action-dialog :doc-type="'2'" :doc-id="actionDocId" :visible.sync="actionVisible" @success="getList" />
   </div>
 </template>
 
 <script>
 import { list, getInfo, add, edit, remove, submit, sign } from '@/api/oa/outgoingDoc'
+import DocActionDialog from '../components/DocActionDialog'
 const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, draftUnit: '', draftDate: '', docLevel: '1', docSecret: '1', mainSend: '', copySend: '', summary: '', attachmentUrl: '', signUserId: null, signUserName: '', status: '0', remark: '' })
 export default {
   name: 'OutgoingDoc',
+  components: { DocActionDialog },
   data() {
     return {
       loading: false, tableData: [], total: 0,
       queryParams: { pageNum: 1, pageSize: 10, docTitle: undefined, docNumber: undefined, status: undefined },
       dialogVisible: false, dialogTitle: '', form: emptyForm(),
       rules: { docTitle: [{ required: true, message: '请输入发文标题', trigger: 'blur' }], docNumber: [{ required: true, message: '请输入发文编号', trigger: 'blur' }] },
-      viewVisible: false, viewData: {}
+      viewVisible: false, viewData: {}, actionVisible: false, actionDocId: null
     }
   },
   created() { this.getList() },
@@ -93,6 +96,7 @@ export default {
     handleAdd() { this.form = emptyForm(); this.dialogTitle = '新增发文'; this.dialogVisible = true },
     handleUpdate(row) { getInfo(row.docId).then(res => { this.form = Object.assign(emptyForm(), res.data || {}); this.dialogTitle = '编辑发文'; this.dialogVisible = true }) },
     handleView(row) { this.viewData = { ...row }; this.viewVisible = true },
+    openAction(row) { this.actionDocId = row.docId; this.actionVisible = true },
     handleSubmit(row) {
       this.$confirm('确认提交审核吗？', '提示', { type: 'warning' }).then(() => submit(row.docId)).then(() => { this.getList(); this.$message.success('提交成功') }).catch(() => {})
     },

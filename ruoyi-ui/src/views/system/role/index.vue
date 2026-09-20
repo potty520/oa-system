@@ -77,6 +77,15 @@
         <el-form-item label="角色顺序" prop="roleSort">
           <el-input-number v-model="form.roleSort" :min="0" controls-position="right" />
         </el-form-item>
+        <el-form-item label="数据范围">
+          <el-select v-model="form.dataScope" style="width:100%">
+            <el-option label="全部数据" value="1" />
+            <el-option label="自定义数据" value="2" />
+            <el-option label="本部门数据" value="3" />
+            <el-option label="本部门及以下" value="4" />
+            <el-option label="仅本人数据" value="5" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="状态">
           <el-radio-group v-model="form.status">
             <el-radio label="0">正常</el-radio>
@@ -121,6 +130,7 @@ export default {
         roleName: '',
         roleKey: '',
         roleSort: 0,
+        dataScope: '1',
         status: '0',
         remark: ''
       },
@@ -222,6 +232,7 @@ export default {
         roleName: '',
         roleKey: '',
         roleSort: 0,
+        dataScope: '1',
         status: '0',
         remark: ''
       }

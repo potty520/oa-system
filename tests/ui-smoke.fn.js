@@ -24,7 +24,7 @@ async (page) => {
   const results = [];
   for (const [route, expected] of routes) {
     try {
-      await page.goto(`http://localhost:8081${route}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.goto(`http://localhost:18081${route}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
       await page.waitForTimeout(800);
       const body = await page.locator('body').innerText({ timeout: 5000 });
       results.push({ route, title: await page.title(), ok: body.includes(expected), expected, url: page.url() });

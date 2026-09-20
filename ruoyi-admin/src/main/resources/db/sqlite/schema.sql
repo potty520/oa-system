@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS sys_role (
   role_name TEXT NOT NULL,
   role_key TEXT NOT NULL,
   role_sort INTEGER DEFAULT 0,
+  data_scope TEXT DEFAULT '1',
   status TEXT DEFAULT '0',
   create_by TEXT DEFAULT '',
   create_time TEXT,
@@ -91,6 +92,59 @@ CREATE TABLE IF NOT EXISTS sys_role_menu (
   menu_id INTEGER NOT NULL,
   PRIMARY KEY (role_id, menu_id)
 );
+
+CREATE TABLE IF NOT EXISTS sys_post (
+  post_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_code TEXT NOT NULL,
+  post_name TEXT NOT NULL,
+  post_sort INTEGER DEFAULT 0,
+  status TEXT DEFAULT '0',
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT,
+  CONSTRAINT uk_sys_post_uk_post_code UNIQUE (post_code)
+);
+
+CREATE TABLE IF NOT EXISTS sys_user_post (
+  user_id INTEGER NOT NULL,
+  post_id INTEGER NOT NULL,
+  PRIMARY KEY (user_id, post_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_role_dept (
+  role_id INTEGER NOT NULL,
+  dept_id INTEGER NOT NULL,
+  PRIMARY KEY (role_id, dept_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_oper_log (
+  log_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT DEFAULT '',
+  business_type TEXT DEFAULT 'OTHER',
+  method TEXT DEFAULT '',
+  request_method TEXT DEFAULT '',
+  operator_name TEXT DEFAULT '',
+  oper_url TEXT DEFAULT '',
+  oper_ip TEXT DEFAULT '',
+  oper_param TEXT,
+  json_result TEXT,
+  status TEXT DEFAULT '0',
+  error_msg TEXT,
+  oper_time TEXT,
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_sys_oper_log_idx_oper_time ON sys_oper_log(oper_time);
+
+CREATE INDEX IF NOT EXISTS idx_sys_oper_log_idx_operator_name ON sys_oper_log(operator_name);
 
 CREATE TABLE IF NOT EXISTS oa_announcement (
   ann_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,11 +282,47 @@ CREATE TABLE IF NOT EXISTS oa_reimbursement_approve_log (
 
 CREATE INDEX IF NOT EXISTS idx_oa_reimbursement_approve_log_idx_reimb_id ON oa_reimbursement_approve_log(reimb_id);
 
+CREATE TABLE IF NOT EXISTS oa_doc_type (
+  doc_type_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  type_name TEXT NOT NULL,
+  type_code TEXT NOT NULL,
+  parent_id INTEGER DEFAULT 0,
+  sort_order INTEGER DEFAULT 0,
+  status TEXT DEFAULT '0',
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT,
+  CONSTRAINT uk_oa_doc_type_uk_type_code UNIQUE (type_code)
+);
+
+CREATE TABLE IF NOT EXISTS oa_doc_template (
+  template_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  template_name TEXT NOT NULL,
+  doc_type TEXT DEFAULT '2',
+  red_header_text TEXT DEFAULT '',
+  title_font TEXT DEFAULT 'SimSun',
+  title_size INTEGER DEFAULT 22,
+  body_font TEXT DEFAULT 'FangSong',
+  body_size INTEGER DEFAULT 16,
+  template_content TEXT,
+  status TEXT DEFAULT '0',
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT
+);
+
 CREATE TABLE IF NOT EXISTS oa_incoming_doc (
   doc_id INTEGER PRIMARY KEY AUTOINCREMENT,
   doc_number TEXT NOT NULL,
   doc_title TEXT NOT NULL,
   doc_type_id INTEGER,
+  template_id INTEGER,
   source_unit TEXT DEFAULT '',
   receive_date TEXT,
   doc_level TEXT DEFAULT '1',
@@ -258,6 +348,7 @@ CREATE TABLE IF NOT EXISTS oa_outgoing_doc (
   doc_number TEXT NOT NULL,
   doc_title TEXT NOT NULL,
   doc_type_id INTEGER,
+  template_id INTEGER,
   draft_unit TEXT DEFAULT '',
   draft_date TEXT,
   doc_level TEXT DEFAULT '1',
@@ -311,6 +402,89 @@ CREATE TABLE IF NOT EXISTS oa_doc_flow_step (
 
 CREATE INDEX IF NOT EXISTS idx_oa_doc_flow_step_idx_flow_id ON oa_doc_flow_step(flow_id);
 
+CREATE TABLE IF NOT EXISTS oa_doc_approval (
+  approval_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  doc_id INTEGER NOT NULL,
+  doc_type TEXT NOT NULL,
+  flow_id INTEGER,
+  step_id INTEGER,
+  user_id INTEGER,
+  user_name TEXT DEFAULT '',
+  approve_result TEXT,
+  approve_remark TEXT DEFAULT '',
+  approve_time TEXT,
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_oa_doc_approval_idx_doc ON oa_doc_approval(doc_id, doc_type);
+
+CREATE TABLE IF NOT EXISTS oa_doc_circulation (
+  circulation_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  doc_id INTEGER NOT NULL,
+  doc_type TEXT NOT NULL,
+  user_id INTEGER NOT NULL,
+  user_name TEXT DEFAULT '',
+  read_status TEXT DEFAULT '0',
+  read_time TEXT,
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_oa_doc_circulation_idx_doc ON oa_doc_circulation(doc_id, doc_type);
+
+CREATE INDEX IF NOT EXISTS idx_oa_doc_circulation_idx_user_id ON oa_doc_circulation(user_id);
+
+CREATE TABLE IF NOT EXISTS oa_doc_reminder (
+  reminder_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  doc_id INTEGER NOT NULL,
+  doc_type TEXT NOT NULL,
+  from_user_id INTEGER,
+  from_user_name TEXT DEFAULT '',
+  to_user_id INTEGER,
+  to_user_name TEXT DEFAULT '',
+  reminder_content TEXT DEFAULT '',
+  reminder_time TEXT,
+  status TEXT DEFAULT '0',
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_oa_doc_reminder_idx_doc ON oa_doc_reminder(doc_id, doc_type);
+
+CREATE INDEX IF NOT EXISTS idx_oa_doc_reminder_idx_to_user ON oa_doc_reminder(to_user_id);
+
+CREATE TABLE IF NOT EXISTS oa_doc_archive (
+  archive_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  doc_id INTEGER NOT NULL,
+  doc_type TEXT NOT NULL,
+  archive_code TEXT DEFAULT '',
+  archive_time TEXT,
+  archive_user_id INTEGER,
+  archive_user_name TEXT DEFAULT '',
+  archive_location TEXT DEFAULT '',
+  remark TEXT DEFAULT '',
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0'
+);
+
+CREATE INDEX IF NOT EXISTS idx_oa_doc_archive_idx_doc ON oa_doc_archive(doc_id, doc_type);
+
 
 
 -- System seed data
@@ -326,14 +500,24 @@ INSERT OR IGNORE INTO sys_user (user_id, username, password, nickname, dept_id, 
 (2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', 103, '0', CURRENT_TIMESTAMP),
 (3, 'lisi', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '李四', 102, '0', CURRENT_TIMESTAMP);
 
-INSERT OR IGNORE INTO sys_role (role_id, role_name, role_key, role_sort, status) VALUES
-(1, '超级管理员', 'admin', 1, '0'),
-(2, '普通用户', 'common', 2, '0'),
-(3, '部门经理', 'manager', 3, '0');
+INSERT OR IGNORE INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES
+(1, '超级管理员', 'admin', 1, '1', '0'),
+(2, '普通用户', 'common', 2, '5', '0'),
+(3, '部门经理', 'manager', 3, '4', '0');
 
 INSERT OR IGNORE INTO sys_user_role (user_id, role_id) VALUES
 (1, 1),
 (2, 2),
+(3, 2);
+
+INSERT OR IGNORE INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES
+(1, 'admin', '系统管理员', 1, '0'),
+(2, 'manager', '部门经理', 2, '0'),
+(3, 'staff', '普通员工', 3, '0');
+
+INSERT OR IGNORE INTO sys_user_post (user_id, post_id) VALUES
+(1, 1),
+(2, 3),
 (3, 2);
 
 INSERT OR IGNORE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES
@@ -350,7 +534,13 @@ INSERT OR IGNORE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, 
 (50, '收文管理', 1, 5, 'incoming-doc', 'oa/incoming-doc/index', 'C', '0', '0', 'oa:incomingDoc:list', 'log'),
 (60, '发文管理', 1, 6, 'outgoing-doc', 'oa/outgoing-doc/index', 'C', '0', '0', 'oa:outgoingDoc:list', 'send'),
 (70, '流程配置', 1, 7, 'doc-flow', 'oa/doc-flow/index', 'C', '0', '0', 'oa:docFlow:list', 'guide'),
-(80, '我的待办', 1, 8, 'todo', 'oa/todo/index', 'C', '0', '0', 'oa:todo:list', 'dashboard');
+(80, '我的待办', 1, 8, 'todo', 'oa/todo/index', 'C', '0', '0', 'oa:todo:list', 'dashboard'),
+(90, '公文中心', 1, 9, 'doc-center', 'oa/doc-center/index', 'C', '0', '0', 'oa:doc:list', 'document'),
+(91, '公文办理', 90, 1, '', NULL, 'F', '0', '0', 'oa:doc:action', '#'),
+(92, '公文类型', 90, 2, '', NULL, 'F', '0', '0', 'oa:docType:list', '#'),
+(100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting'),
+(101, '岗位管理', 100, 1, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard'),
+(102, '操作日志', 100, 2, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
 
 INSERT OR IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1),
@@ -367,6 +557,12 @@ INSERT OR IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 60),
 (1, 70),
 (1, 80),
+(1, 90),
+(1, 91),
+(1, 92),
+(1, 100),
+(1, 101),
+(1, 102),
 (2, 1),
 (2, 10),
 (2, 20),
@@ -375,4 +571,6 @@ INSERT OR IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 40),
 (2, 50),
 (2, 60),
-(2, 80);
+(2, 80),
+(2, 90),
+(2, 91);

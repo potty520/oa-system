@@ -5,7 +5,7 @@ async (page) => {
   const onPageError = err => errors.push(err.message);
   page.on('console', onConsole);
   page.on('pageerror', onPageError);
-  await page.goto('http://localhost:8081/oa/announcement', { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.goto('http://localhost:18081/oa/announcement', { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.getByRole('button', { name: /新增/ }).click();
   const dialog = page.locator('.el-dialog:visible');
   await dialog.getByPlaceholder('请输入公告标题').fill(title);

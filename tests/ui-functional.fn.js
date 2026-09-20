@@ -18,14 +18,17 @@ async (page) => {
     ['/oa/incoming-doc', '收文标题'],
     ['/oa/outgoing-doc', '发文标题'],
     ['/oa/doc-flow', '流程名称'],
+    ['/oa/doc-center', '我的传阅'],
     ['/oa/todo', '任务标题'],
     ['/oa/notice', '公告标题'],
     ['/system/user', '用户名称'],
     ['/system/role', '角色名称'],
-    ['/system/dept', '部门名称']
+    ['/system/dept', '部门名称'],
+    ['/system/post', '岗位编码'],
+    ['/system/log', '模块']
   ];
 
-  await page.goto('http://localhost:8081/login', { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.goto('http://localhost:18081/login', { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.getByRole('textbox', { name: '用户名' }).fill('admin');
   await page.getByRole('textbox', { name: '密码' }).fill('admin123');
   await page.getByRole('button', { name: '登 录' }).click();
@@ -35,7 +38,7 @@ async (page) => {
   const routeResults = [];
   for (const [route, expected] of routes) {
     try {
-      await page.goto(`http://localhost:8081${route}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
+      await page.goto(`http://localhost:18081${route}`, { waitUntil: 'domcontentloaded', timeout: 20000 });
       await page.waitForTimeout(600);
       const body = await page.locator('body').innerText({ timeout: 5000 });
       routeResults.push({ route, ok: body.includes(expected), url: page.url() });
@@ -47,7 +50,7 @@ async (page) => {
   const title = `UI功能测试公告${Date.now()}`;
   let announcementCreated = false;
   let announcementDeleted = false;
-  await page.goto('http://localhost:8081/oa/announcement', { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.goto('http://localhost:18081/oa/announcement', { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.getByRole('button', { name: /新增/ }).click();
   const dialog = page.locator('.el-dialog:visible');
   await dialog.getByPlaceholder('请输入公告标题').fill(title);

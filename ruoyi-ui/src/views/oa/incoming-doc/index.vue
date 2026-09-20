@@ -22,7 +22,7 @@
       <el-table-column label="办理人" prop="handlerName" width="100" align="center" />
       <el-table-column label="操作" min-width="220" align="center">
         <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">查看</el-button>
+          <el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">查看</el-button><el-button size="mini" type="text" icon="el-icon-sort" @click="openAction(scope.row)">流程</el-button>
           <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-check" @click="handleSign(scope.row)">签收</el-button>
           <el-button v-if="scope.row.status === '1'" size="mini" type="text" icon="el-icon-finished" @click="handleComplete(scope.row)">办结</el-button>
           <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
@@ -66,21 +66,24 @@
         <el-descriptions-item label="内容摘要" :span="2">{{ viewData.summary }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
+    <doc-action-dialog :doc-type="'1'" :doc-id="actionDocId" :visible.sync="actionVisible" @success="getList" />
   </div>
 </template>
 
 <script>
 import { list, getInfo, add, edit, remove, sign, complete } from '@/api/oa/incomingDoc'
+import DocActionDialog from '../components/DocActionDialog'
 const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, sourceUnit: '', receiveDate: '', docLevel: '1', docSecret: '1', summary: '', attachmentUrl: '', handlerId: null, handlerName: '', remark: '' })
 export default {
   name: 'IncomingDoc',
+  components: { DocActionDialog },
   data() {
     return {
       loading: false, tableData: [], total: 0,
       queryParams: { pageNum: 1, pageSize: 10, docTitle: undefined, docNumber: undefined, status: undefined },
       dialogVisible: false, dialogTitle: '', form: emptyForm(),
       rules: { docTitle: [{ required: true, message: '请输入收文标题', trigger: 'blur' }], docNumber: [{ required: true, message: '请输入收文编号', trigger: 'blur' }] },
-      viewVisible: false, viewData: {}
+      viewVisible: false, viewData: {}, actionVisible: false, actionDocId: null
     }
   },
   created() { this.getList() },
@@ -94,6 +97,7 @@ export default {
     handleAdd() { this.form = emptyForm(); this.dialogTitle = '新增收文'; this.dialogVisible = true },
     handleUpdate(row) { getInfo(row.docId).then(res => { this.form = Object.assign(emptyForm(), res.data || {}); this.dialogTitle = '编辑收文'; this.dialogVisible = true }) },
     handleView(row) { this.viewData = { ...row }; this.viewVisible = true },
+    openAction(row) { this.actionDocId = row.docId; this.actionVisible = true },
     handleSign(row) { this.$confirm('确认签收该文件吗？', '提示', { type: 'warning' }).then(() => sign(row.docId)).then(() => { this.getList(); this.$message.success('签收成功') }).catch(() => {}) },
     handleComplete(row) { this.$confirm('确认办结该文件吗？', '提示', { type: 'warning' }).then(() => complete(row.docId)).then(() => { this.getList(); this.$message.success('办结成功') }).catch(() => {}) },
     handleDelete(row) { this.$confirm('确认删除该收文吗？', '提示', { type: 'warning' }).then(() => remove(row.docId)).then(() => { this.getList(); this.$message.success('删除成功') }).catch(() => {}) },

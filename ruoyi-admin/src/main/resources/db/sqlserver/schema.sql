@@ -62,6 +62,7 @@ CREATE TABLE sys_role (
   role_name NVARCHAR(30) NOT NULL,
   role_key NVARCHAR(100) NOT NULL,
   role_sort INT DEFAULT 0,
+  data_scope NCHAR(1) DEFAULT '1',
   status NCHAR(1) DEFAULT '0',
   create_by NVARCHAR(64) DEFAULT '',
   create_time DATETIME2,
@@ -114,6 +115,75 @@ CREATE TABLE sys_role_menu (
   PRIMARY KEY (role_id, menu_id)
 );
 END;
+
+IF OBJECT_ID(N'sys_post', N'U') IS NULL
+BEGIN
+CREATE TABLE sys_post (
+  post_id BIGINT IDENTITY(1000,1) NOT NULL,
+  post_code NVARCHAR(64) NOT NULL,
+  post_name NVARCHAR(50) NOT NULL,
+  post_sort INT DEFAULT 0,
+  status NCHAR(1) DEFAULT '0',
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (post_id),
+  CONSTRAINT uk_sys_post_uk_post_code UNIQUE (post_code)
+);
+END;
+
+IF OBJECT_ID(N'sys_user_post', N'U') IS NULL
+BEGIN
+CREATE TABLE sys_user_post (
+  user_id BIGINT NOT NULL,
+  post_id BIGINT NOT NULL,
+  PRIMARY KEY (user_id, post_id)
+);
+END;
+
+IF OBJECT_ID(N'sys_role_dept', N'U') IS NULL
+BEGIN
+CREATE TABLE sys_role_dept (
+  role_id BIGINT NOT NULL,
+  dept_id BIGINT NOT NULL,
+  PRIMARY KEY (role_id, dept_id)
+);
+END;
+
+IF OBJECT_ID(N'sys_oper_log', N'U') IS NULL
+BEGIN
+CREATE TABLE sys_oper_log (
+  log_id BIGINT IDENTITY(1000,1) NOT NULL,
+  title NVARCHAR(100) DEFAULT '',
+  business_type NVARCHAR(20) DEFAULT 'OTHER',
+  method NVARCHAR(500) DEFAULT '',
+  request_method NVARCHAR(10) DEFAULT '',
+  operator_name NVARCHAR(64) DEFAULT '',
+  oper_url NVARCHAR(500) DEFAULT '',
+  oper_ip NVARCHAR(128) DEFAULT '',
+  oper_param NVARCHAR(MAX),
+  json_result NVARCHAR(MAX),
+  status NCHAR(1) DEFAULT '0',
+  error_msg NVARCHAR(MAX),
+  oper_time DATETIME2,
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (log_id)
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sys_oper_log_idx_oper_time' AND object_id = OBJECT_ID('sys_oper_log'))
+CREATE INDEX idx_sys_oper_log_idx_oper_time ON sys_oper_log(oper_time);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sys_oper_log_idx_operator_name' AND object_id = OBJECT_ID('sys_oper_log'))
+CREATE INDEX idx_sys_oper_log_idx_operator_name ON sys_oper_log(operator_name);
 
 IF OBJECT_ID(N'oa_announcement', N'U') IS NULL
 BEGIN
@@ -282,6 +352,49 @@ END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_reimbursement_approve_log_idx_reimb_id' AND object_id = OBJECT_ID('oa_reimbursement_approve_log'))
 CREATE INDEX idx_oa_reimbursement_approve_log_idx_reimb_id ON oa_reimbursement_approve_log(reimb_id);
 
+IF OBJECT_ID(N'oa_doc_type', N'U') IS NULL
+BEGIN
+CREATE TABLE oa_doc_type (
+  doc_type_id BIGINT IDENTITY(1000,1) NOT NULL,
+  type_name NVARCHAR(100) NOT NULL,
+  type_code NVARCHAR(50) NOT NULL,
+  parent_id BIGINT DEFAULT 0,
+  sort_order INT DEFAULT 0,
+  status NCHAR(1) DEFAULT '0',
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (doc_type_id),
+  CONSTRAINT uk_oa_doc_type_uk_type_code UNIQUE (type_code)
+);
+END;
+
+IF OBJECT_ID(N'oa_doc_template', N'U') IS NULL
+BEGIN
+CREATE TABLE oa_doc_template (
+  template_id BIGINT IDENTITY(1000,1) NOT NULL,
+  template_name NVARCHAR(100) NOT NULL,
+  doc_type NCHAR(1) DEFAULT '2',
+  red_header_text NVARCHAR(200) DEFAULT '',
+  title_font NVARCHAR(100) DEFAULT 'SimSun',
+  title_size INT DEFAULT 22,
+  body_font NVARCHAR(100) DEFAULT 'FangSong',
+  body_size INT DEFAULT 16,
+  template_content NVARCHAR(MAX),
+  status NCHAR(1) DEFAULT '0',
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (template_id)
+);
+END;
+
 IF OBJECT_ID(N'oa_incoming_doc', N'U') IS NULL
 BEGIN
 CREATE TABLE oa_incoming_doc (
@@ -289,6 +402,7 @@ CREATE TABLE oa_incoming_doc (
   doc_number NVARCHAR(100) NOT NULL,
   doc_title NVARCHAR(200) NOT NULL,
   doc_type_id BIGINT,
+  template_id BIGINT,
   source_unit NVARCHAR(200) DEFAULT '',
   receive_date DATE,
   doc_level NCHAR(1) DEFAULT '1',
@@ -319,6 +433,7 @@ CREATE TABLE oa_outgoing_doc (
   doc_number NVARCHAR(100) NOT NULL,
   doc_title NVARCHAR(200) NOT NULL,
   doc_type_id BIGINT,
+  template_id BIGINT,
   draft_unit NVARCHAR(200) DEFAULT '',
   draft_date DATE,
   doc_level NCHAR(1) DEFAULT '1',
@@ -384,6 +499,111 @@ END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_flow_step_idx_flow_id' AND object_id = OBJECT_ID('oa_doc_flow_step'))
 CREATE INDEX idx_oa_doc_flow_step_idx_flow_id ON oa_doc_flow_step(flow_id);
 
+IF OBJECT_ID(N'oa_doc_approval', N'U') IS NULL
+BEGIN
+CREATE TABLE oa_doc_approval (
+  approval_id BIGINT IDENTITY(1000,1) NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type NCHAR(1) NOT NULL,
+  flow_id BIGINT,
+  step_id BIGINT,
+  user_id BIGINT,
+  user_name NVARCHAR(50) DEFAULT '',
+  approve_result NCHAR(1),
+  approve_remark NVARCHAR(500) DEFAULT '',
+  approve_time DATETIME2,
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (approval_id)
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_approval_idx_doc' AND object_id = OBJECT_ID('oa_doc_approval'))
+CREATE INDEX idx_oa_doc_approval_idx_doc ON oa_doc_approval(doc_id, doc_type);
+
+IF OBJECT_ID(N'oa_doc_circulation', N'U') IS NULL
+BEGIN
+CREATE TABLE oa_doc_circulation (
+  circulation_id BIGINT IDENTITY(1000,1) NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type NCHAR(1) NOT NULL,
+  user_id BIGINT NOT NULL,
+  user_name NVARCHAR(50) DEFAULT '',
+  read_status NCHAR(1) DEFAULT '0',
+  read_time DATETIME2,
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (circulation_id)
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_circulation_idx_doc' AND object_id = OBJECT_ID('oa_doc_circulation'))
+CREATE INDEX idx_oa_doc_circulation_idx_doc ON oa_doc_circulation(doc_id, doc_type);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_circulation_idx_user_id' AND object_id = OBJECT_ID('oa_doc_circulation'))
+CREATE INDEX idx_oa_doc_circulation_idx_user_id ON oa_doc_circulation(user_id);
+
+IF OBJECT_ID(N'oa_doc_reminder', N'U') IS NULL
+BEGIN
+CREATE TABLE oa_doc_reminder (
+  reminder_id BIGINT IDENTITY(1000,1) NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type NCHAR(1) NOT NULL,
+  from_user_id BIGINT,
+  from_user_name NVARCHAR(50) DEFAULT '',
+  to_user_id BIGINT,
+  to_user_name NVARCHAR(50) DEFAULT '',
+  reminder_content NVARCHAR(500) DEFAULT '',
+  reminder_time DATETIME2,
+  status NCHAR(1) DEFAULT '0',
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (reminder_id)
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_reminder_idx_doc' AND object_id = OBJECT_ID('oa_doc_reminder'))
+CREATE INDEX idx_oa_doc_reminder_idx_doc ON oa_doc_reminder(doc_id, doc_type);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_reminder_idx_to_user' AND object_id = OBJECT_ID('oa_doc_reminder'))
+CREATE INDEX idx_oa_doc_reminder_idx_to_user ON oa_doc_reminder(to_user_id);
+
+IF OBJECT_ID(N'oa_doc_archive', N'U') IS NULL
+BEGIN
+CREATE TABLE oa_doc_archive (
+  archive_id BIGINT IDENTITY(1000,1) NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type NCHAR(1) NOT NULL,
+  archive_code NVARCHAR(100) DEFAULT '',
+  archive_time DATETIME2,
+  archive_user_id BIGINT,
+  archive_user_name NVARCHAR(50) DEFAULT '',
+  archive_location NVARCHAR(200) DEFAULT '',
+  remark NVARCHAR(500) DEFAULT '',
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  PRIMARY KEY (archive_id)
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_archive_idx_doc' AND object_id = OBJECT_ID('oa_doc_archive'))
+CREATE INDEX idx_oa_doc_archive_idx_doc ON oa_doc_archive(doc_id, doc_type);
+
 
 
 -- System seed data
@@ -420,13 +640,13 @@ SET IDENTITY_INSERT sys_user OFF;
 SET IDENTITY_INSERT sys_role ON;
 
 IF NOT EXISTS (SELECT 1 FROM sys_role WHERE role_id = 1)
-INSERT INTO sys_role (role_id, role_name, role_key, role_sort, status) VALUES (1, '超级管理员', 'admin', 1, '0');
+INSERT INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES (1, '超级管理员', 'admin', 1, '1', '0');
 
 IF NOT EXISTS (SELECT 1 FROM sys_role WHERE role_id = 2)
-INSERT INTO sys_role (role_id, role_name, role_key, role_sort, status) VALUES (2, '普通用户', 'common', 2, '0');
+INSERT INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES (2, '普通用户', 'common', 2, '5', '0');
 
 IF NOT EXISTS (SELECT 1 FROM sys_role WHERE role_id = 3)
-INSERT INTO sys_role (role_id, role_name, role_key, role_sort, status) VALUES (3, '部门经理', 'manager', 3, '0');
+INSERT INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES (3, '部门经理', 'manager', 3, '4', '0');
 
 SET IDENTITY_INSERT sys_role OFF;
 
@@ -438,6 +658,28 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES (2, 2);
 
 IF NOT EXISTS (SELECT 1 FROM sys_user_role WHERE user_id = 3 AND role_id = 2)
 INSERT INTO sys_user_role (user_id, role_id) VALUES (3, 2);
+
+SET IDENTITY_INSERT sys_post ON;
+
+IF NOT EXISTS (SELECT 1 FROM sys_post WHERE post_id = 1)
+INSERT INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES (1, 'admin', '系统管理员', 1, '0');
+
+IF NOT EXISTS (SELECT 1 FROM sys_post WHERE post_id = 2)
+INSERT INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES (2, 'manager', '部门经理', 2, '0');
+
+IF NOT EXISTS (SELECT 1 FROM sys_post WHERE post_id = 3)
+INSERT INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES (3, 'staff', '普通员工', 3, '0');
+
+SET IDENTITY_INSERT sys_post OFF;
+
+IF NOT EXISTS (SELECT 1 FROM sys_user_post WHERE user_id = 1 AND post_id = 1)
+INSERT INTO sys_user_post (user_id, post_id) VALUES (1, 1);
+
+IF NOT EXISTS (SELECT 1 FROM sys_user_post WHERE user_id = 2 AND post_id = 3)
+INSERT INTO sys_user_post (user_id, post_id) VALUES (2, 3);
+
+IF NOT EXISTS (SELECT 1 FROM sys_user_post WHERE user_id = 3 AND post_id = 2)
+INSERT INTO sys_user_post (user_id, post_id) VALUES (3, 2);
 
 SET IDENTITY_INSERT sys_menu ON;
 
@@ -483,6 +725,24 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 80)
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (80, '我的待办', 1, 8, 'todo', 'oa/todo/index', 'C', '0', '0', 'oa:todo:list', 'dashboard');
 
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 90)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (90, '公文中心', 1, 9, 'doc-center', 'oa/doc-center/index', 'C', '0', '0', 'oa:doc:list', 'document');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 91)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (91, '公文办理', 90, 1, '', NULL, 'F', '0', '0', 'oa:doc:action', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 92)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (92, '公文类型', 90, 2, '', NULL, 'F', '0', '0', 'oa:docType:list', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 100)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 101)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (101, '岗位管理', 100, 1, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 102)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (102, '操作日志', 100, 2, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
+
 SET IDENTITY_INSERT sys_menu OFF;
 
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 1)
@@ -527,6 +787,24 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 70);
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 80)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 80);
 
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 90)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 90);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 91)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 91);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 92)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 92);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 100)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 100);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 101)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 101);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 102)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 102);
+
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 1)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 1);
 
@@ -553,3 +831,9 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 60);
 
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 80)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 80);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 90)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 90);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 91)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 91);

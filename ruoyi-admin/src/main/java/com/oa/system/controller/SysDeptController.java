@@ -5,6 +5,7 @@ import com.oa.common.core.result.AjaxResult;
 import com.oa.system.domain.SysDept;
 import com.oa.system.service.ISysDeptService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -14,26 +15,31 @@ public class SysDeptController extends BaseController {
     @Autowired
     private ISysDeptService deptService;
 
+    @PreAuthorize("@ss.hasPermi('system:dept:list')")
     @GetMapping("/list")
     public AjaxResult list(SysDept dept) {
         return AjaxResult.success(deptService.selectDeptList(dept));
     }
 
+    @PreAuthorize("@ss.hasPermi('system:dept:query')")
     @GetMapping("/{deptId}")
     public AjaxResult getInfo(@PathVariable Long deptId) {
         return AjaxResult.success(deptService.getById(deptId));
     }
 
+    @PreAuthorize("@ss.hasPermi('system:dept:add')")
     @PostMapping
     public AjaxResult add(@RequestBody SysDept dept) {
         return toAjax(deptService.save(dept));
     }
 
+    @PreAuthorize("@ss.hasPermi('system:dept:edit')")
     @PutMapping
     public AjaxResult edit(@RequestBody SysDept dept) {
         return toAjax(deptService.updateById(dept));
     }
 
+    @PreAuthorize("@ss.hasPermi('system:dept:remove')")
     @DeleteMapping("/{deptIds}")
     public AjaxResult remove(@PathVariable Long[] deptIds) {
         boolean success = true;
@@ -43,6 +49,7 @@ public class SysDeptController extends BaseController {
         return toAjax(success);
     }
 
+    @PreAuthorize("@ss.hasPermi('system:dept:edit')")
     @PutMapping("/changeStatus")
     public AjaxResult changeStatus(@RequestBody SysDept dept) {
         return toAjax(deptService.updateById(dept));

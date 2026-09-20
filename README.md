@@ -9,7 +9,10 @@
 - 日程管理
 - 请假申请与审批
 - 报销申请、明细和审批
-- 收文、发文及流程配置
+- 收文、发文及完整流程动作
+- 公文中心、传阅、已办、归档和公文类型
+- 公文模板和套红预览
+- 岗位、角色数据范围和操作审计
 - 待办事项与首页统计
 
 ## 环境要求
@@ -106,6 +109,10 @@ java -jar .\ruoyi-admin\target\ruoyi-admin-1.0.0.jar --spring.profiles.active=sq
 
 SQLite 仅建议用于本地开发和演示，生产环境仍建议使用 MySQL。
 
+旧 SQLite 数据库升级到首期结构时，可执行：
+
+`E:\\api\\oa-system\\ruoyi-admin\\src\\main\\resources\\db\\sqlite\\migration-phase1.sql`
+
 ## 初始化数据库
 
 1. 创建数据库：
@@ -134,7 +141,7 @@ mvn clean package
 java -jar .\ruoyi-admin\target\ruoyi-admin-1.0.0.jar
 ```
 
-默认地址：`http://localhost:8080`
+本地开发默认地址：`http://localhost:18080`
 
 ## 启动前端
 
@@ -144,7 +151,7 @@ npm install
 npm run dev
 ```
 
-默认地址：`http://localhost:8081`
+本地开发默认地址：`http://localhost:18081`
 
 ## 构建前端
 

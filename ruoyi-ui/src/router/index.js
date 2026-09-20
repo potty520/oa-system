@@ -78,6 +78,12 @@ export const constantRoutes = [
         meta: { title: '公文流转', icon: 'el-icon-sort' }
       },
       {
+        path: 'doc-center',
+        component: () => import('../views/oa/doc-center/index'),
+        name: 'DocCenter',
+        meta: { title: '公文中心', icon: 'el-icon-document' }
+      },
+      {
         path: 'todo',
         component: () => import('../views/oa/todo/index'),
         name: 'Todo',
@@ -115,6 +121,18 @@ export const constantRoutes = [
         component: () => import('../views/system/dept/index'),
         name: 'Dept',
         meta: { title: '部门管理', icon: 'el-icon-s-management' }
+      },
+      {
+        path: 'post',
+        component: () => import('../views/system/post/index'),
+        name: 'Post',
+        meta: { title: '岗位管理', icon: 'el-icon-postcard' }
+      },
+      {
+        path: 'log',
+        component: () => import('../views/system/log/index'),
+        name: 'OperLog',
+        meta: { title: '操作日志', icon: 'el-icon-document-checked' }
       }
     ]
   },

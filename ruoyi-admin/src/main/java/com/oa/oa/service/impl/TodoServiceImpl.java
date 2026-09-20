@@ -1,9 +1,13 @@
 package com.oa.oa.service.impl;
 
 import com.oa.oa.domain.OaLeave;
+import com.oa.oa.domain.OaIncomingDoc;
+import com.oa.oa.domain.OaOutgoingDoc;
 import com.oa.oa.domain.OaReimbursement;
 import com.oa.oa.domain.OaTodo;
+import com.oa.oa.mapper.OaIncomingDocMapper;
 import com.oa.oa.mapper.OaLeaveMapper;
+import com.oa.oa.mapper.OaOutgoingDocMapper;
 import com.oa.oa.mapper.OaReimbursementMapper;
 import com.oa.oa.mapper.OaTodoMapper;
 import com.oa.oa.service.ITodoService;
@@ -25,10 +29,16 @@ public class TodoServiceImpl implements ITodoService {
     @Autowired
     private OaReimbursementMapper reimbursementMapper;
 
+    @Autowired
+    private OaIncomingDocMapper incomingDocMapper;
+
+    @Autowired
+    private OaOutgoingDocMapper outgoingDocMapper;
+
     @Override
-    public List<OaTodo> selectTodoList(Long userId, String todoTitle, String status) {
+    public List<OaTodo> selectTodoList(Long userId, String userName, String todoTitle, String status) {
         String todoTitleLike = org.apache.commons.lang3.StringUtils.isBlank(todoTitle) ? null : "%" + todoTitle + "%";
-        return todoMapper.selectTodoList(userId, todoTitleLike, status);
+        return todoMapper.selectTodoList(userId, userName, todoTitleLike, status);
     }
 
     @Override
@@ -49,6 +59,18 @@ public class TodoServiceImpl implements ITodoService {
             if (reimbursement != null) {
                 reimbursement.setApprovalStatus("2");
                 reimbursementMapper.updateById(reimbursement);
+            }
+        } else if ("incoming_doc".equals(todoType)) {
+            OaIncomingDoc doc = incomingDocMapper.selectById(relatedId);
+            if (doc != null) {
+                doc.setStatus("0".equals(doc.getStatus()) ? "1" : "2");
+                incomingDocMapper.updateById(doc);
+            }
+        } else if ("outgoing_doc".equals(todoType)) {
+            OaOutgoingDoc doc = outgoingDocMapper.selectById(relatedId);
+            if (doc != null) {
+                doc.setStatus("0".equals(doc.getStatus()) ? "1" : "2");
+                outgoingDocMapper.updateById(doc);
             }
         }
     }
