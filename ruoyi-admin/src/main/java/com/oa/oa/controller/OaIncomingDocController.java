@@ -5,6 +5,7 @@ import com.oa.common.core.page.TableDataInfo;
 import com.oa.common.core.result.AjaxResult;
 import com.oa.oa.domain.OaIncomingDoc;
 import com.oa.oa.service.IOaIncomingDocService;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -31,11 +32,26 @@ public class OaIncomingDocController extends BaseController {
 
     @PostMapping
     public AjaxResult add(@RequestBody OaIncomingDoc doc) {
+        if (StringUtils.isBlank(doc.getDocTitle()) || StringUtils.isBlank(doc.getDocNumber())) {
+            return AjaxResult.error(400, "收文标题和收文编号不能为空");
+        }
+        if (incomingDocService.existsByDocNumber(doc.getDocNumber(), null)) {
+            return AjaxResult.error(409, "收文编号已存在");
+        }
         return toAjax(incomingDocService.insertOaIncomingDoc(doc));
     }
 
     @PutMapping
     public AjaxResult edit(@RequestBody OaIncomingDoc doc) {
+        if (doc.getDocId() == null) {
+            return AjaxResult.error(400, "收文ID不能为空");
+        }
+        if (StringUtils.isBlank(doc.getDocTitle()) || StringUtils.isBlank(doc.getDocNumber())) {
+            return AjaxResult.error(400, "收文标题和收文编号不能为空");
+        }
+        if (incomingDocService.existsByDocNumber(doc.getDocNumber(), doc.getDocId())) {
+            return AjaxResult.error(409, "收文编号已存在");
+        }
         return toAjax(incomingDocService.updateOaIncomingDoc(doc));
     }
 

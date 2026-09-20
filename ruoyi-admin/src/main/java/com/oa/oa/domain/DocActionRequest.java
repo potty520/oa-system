@@ -8,6 +8,7 @@ import java.util.List;
 public class DocActionRequest {
     private String docType;
     private String action;
+    private Long approvalId;
     private String opinion;
     private Long targetUserId;
     private String targetUserName;

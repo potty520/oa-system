@@ -352,6 +352,30 @@ END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_reimbursement_approve_log_idx_reimb_id' AND object_id = OBJECT_ID('oa_reimbursement_approve_log'))
 CREATE INDEX idx_oa_reimbursement_approve_log_idx_reimb_id ON oa_reimbursement_approve_log(reimb_id);
 
+IF OBJECT_ID(N'oa_document', N'U') IS NULL
+BEGIN
+CREATE TABLE oa_document (
+  document_id BIGINT IDENTITY(1000,1) NOT NULL,
+  document_name NVARCHAR(200) NOT NULL,
+  document_type NVARCHAR(50) DEFAULT '',
+  file_path NVARCHAR(500) DEFAULT '',
+  file_size BIGINT DEFAULT 0,
+  user_id BIGINT,
+  user_name NVARCHAR(50) DEFAULT '',
+  status NCHAR(1) DEFAULT '0',
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (document_id)
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_document_idx_user_id' AND object_id = OBJECT_ID('oa_document'))
+CREATE INDEX idx_oa_document_idx_user_id ON oa_document(user_id);
+
 IF OBJECT_ID(N'oa_doc_type', N'U') IS NULL
 BEGIN
 CREATE TABLE oa_doc_type (
@@ -580,6 +604,35 @@ CREATE INDEX idx_oa_doc_reminder_idx_doc ON oa_doc_reminder(doc_id, doc_type);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_reminder_idx_to_user' AND object_id = OBJECT_ID('oa_doc_reminder'))
 CREATE INDEX idx_oa_doc_reminder_idx_to_user ON oa_doc_reminder(to_user_id);
 
+IF OBJECT_ID(N'oa_doc_delegate', N'U') IS NULL
+BEGIN
+CREATE TABLE oa_doc_delegate (
+  delegate_id BIGINT IDENTITY(1000,1) NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type NCHAR(1) NOT NULL,
+  from_user_id BIGINT,
+  from_user_name NVARCHAR(50) DEFAULT '',
+  to_user_id BIGINT,
+  to_user_name NVARCHAR(50) DEFAULT '',
+  delegate_type NCHAR(1) DEFAULT '1',
+  opinion NVARCHAR(500) DEFAULT '',
+  status NCHAR(1) DEFAULT '0',
+  create_by NVARCHAR(64) DEFAULT '',
+  create_time DATETIME2,
+  update_by NVARCHAR(64) DEFAULT '',
+  update_time DATETIME2,
+  del_flag NCHAR(1) DEFAULT '0',
+  remark NVARCHAR(500),
+  PRIMARY KEY (delegate_id)
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_delegate_idx_doc' AND object_id = OBJECT_ID('oa_doc_delegate'))
+CREATE INDEX idx_oa_doc_delegate_idx_doc ON oa_doc_delegate(doc_id, doc_type);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_delegate_idx_to_user' AND object_id = OBJECT_ID('oa_doc_delegate'))
+CREATE INDEX idx_oa_doc_delegate_idx_to_user ON oa_doc_delegate(to_user_id);
+
 IF OBJECT_ID(N'oa_doc_archive', N'U') IS NULL
 BEGIN
 CREATE TABLE oa_doc_archive (
@@ -734,6 +787,18 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 92)
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (92, '公文类型', 90, 2, '', NULL, 'F', '0', '0', 'oa:docType:list', '#');
 
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 93)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (93, '附件查看', 90, 3, '', NULL, 'F', '0', '0', 'oa:document:list', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 94)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (94, '附件上传', 90, 4, '', NULL, 'F', '0', '0', 'oa:document:upload', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 95)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (95, '附件下载', 90, 5, '', NULL, 'F', '0', '0', 'oa:document:query', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 96)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (96, '附件删除', 90, 6, '', NULL, 'F', '0', '0', 'oa:document:remove', '#');
+
 IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 100)
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting');
 
@@ -796,6 +861,18 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 91);
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 92)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 92);
 
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 93)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 93);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 94)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 94);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 95)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 95);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 96)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 96);
+
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 100)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 100);
 
@@ -837,3 +914,15 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 90);
 
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 91)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 91);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 93)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 93);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 94)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 94);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 95)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 95);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 96)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 96);

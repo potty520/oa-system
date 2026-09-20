@@ -31,6 +31,17 @@ public class OaIncomingDocServiceImpl extends ServiceImpl<OaIncomingDocMapper, O
     }
 
     @Override
+    public boolean existsByDocNumber(String docNumber, Long excludeId) {
+        if (StringUtils.isBlank(docNumber)) {
+            return false;
+        }
+        LambdaQueryWrapper<OaIncomingDoc> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(OaIncomingDoc::getDocNumber, docNumber)
+                .ne(excludeId != null, OaIncomingDoc::getDocId, excludeId);
+        return baseMapper.selectCount(wrapper) > 0;
+    }
+
+    @Override
     public int insertOaIncomingDoc(OaIncomingDoc doc) {
         doc.setStatus("0");
         return baseMapper.insert(doc);

@@ -92,6 +92,9 @@
             <el-radio label="1">停用</el-radio>
           </el-radio-group>
         </el-form-item>
+        <el-form-item v-if="form.dataScope === '2'" label="自定义部门">
+          <el-input v-model="form.deptIdsText" placeholder="部门ID，多个用英文逗号分隔" />
+        </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
@@ -131,6 +134,8 @@ export default {
         roleKey: '',
         roleSort: 0,
         dataScope: '1',
+        deptIds: [],
+        deptIdsText: '',
         status: '0',
         remark: ''
       },
@@ -176,6 +181,7 @@ export default {
       const roleId = row.roleId || this.ids[0]
       request({ url: '/system/role/' + roleId, method: 'get' }).then(res => {
         this.form = res.data || {}
+        this.form.deptIdsText = (this.form.deptIds || []).join(',')
         this.dialogTitle = '修改角色'
         this.dialogVisible = true
       })
@@ -210,14 +216,15 @@ export default {
     submitForm() {
       this.$refs.form.validate(valid => {
         if (valid) {
+          const submitData = { ...this.form, deptIds: this.form.deptIdsText ? this.form.deptIdsText.split(',').map(value => Number(value.trim())).filter(Boolean) : [] }
           if (this.form.roleId) {
-            request({ url: '/system/role', method: 'put', data: this.form }).then(() => {
+            request({ url: '/system/role', method: 'put', data: submitData }).then(() => {
               this.$message.success('修改成功')
               this.dialogVisible = false
               this.getList()
             })
           } else {
-            request({ url: '/system/role', method: 'post', data: this.form }).then(() => {
+            request({ url: '/system/role', method: 'post', data: submitData }).then(() => {
               this.$message.success('新增成功')
               this.dialogVisible = false
               this.getList()
@@ -233,6 +240,8 @@ export default {
         roleKey: '',
         roleSort: 0,
         dataScope: '1',
+        deptIds: [],
+        deptIdsText: '',
         status: '0',
         remark: ''
       }

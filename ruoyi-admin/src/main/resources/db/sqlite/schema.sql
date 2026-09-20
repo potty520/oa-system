@@ -282,6 +282,25 @@ CREATE TABLE IF NOT EXISTS oa_reimbursement_approve_log (
 
 CREATE INDEX IF NOT EXISTS idx_oa_reimbursement_approve_log_idx_reimb_id ON oa_reimbursement_approve_log(reimb_id);
 
+CREATE TABLE IF NOT EXISTS oa_document (
+  document_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  document_name TEXT NOT NULL,
+  document_type TEXT DEFAULT '',
+  file_path TEXT DEFAULT '',
+  file_size INTEGER DEFAULT 0,
+  user_id INTEGER,
+  user_name TEXT DEFAULT '',
+  status TEXT DEFAULT '0',
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_oa_document_idx_user_id ON oa_document(user_id);
+
 CREATE TABLE IF NOT EXISTS oa_doc_type (
   doc_type_id INTEGER PRIMARY KEY AUTOINCREMENT,
   type_name TEXT NOT NULL,
@@ -466,6 +485,29 @@ CREATE INDEX IF NOT EXISTS idx_oa_doc_reminder_idx_doc ON oa_doc_reminder(doc_id
 
 CREATE INDEX IF NOT EXISTS idx_oa_doc_reminder_idx_to_user ON oa_doc_reminder(to_user_id);
 
+CREATE TABLE IF NOT EXISTS oa_doc_delegate (
+  delegate_id INTEGER PRIMARY KEY AUTOINCREMENT,
+  doc_id INTEGER NOT NULL,
+  doc_type TEXT NOT NULL,
+  from_user_id INTEGER,
+  from_user_name TEXT DEFAULT '',
+  to_user_id INTEGER,
+  to_user_name TEXT DEFAULT '',
+  delegate_type TEXT DEFAULT '1',
+  opinion TEXT DEFAULT '',
+  status TEXT DEFAULT '0',
+  create_by TEXT DEFAULT '',
+  create_time TEXT,
+  update_by TEXT DEFAULT '',
+  update_time TEXT,
+  del_flag TEXT DEFAULT '0',
+  remark TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_oa_doc_delegate_idx_doc ON oa_doc_delegate(doc_id, doc_type);
+
+CREATE INDEX IF NOT EXISTS idx_oa_doc_delegate_idx_to_user ON oa_doc_delegate(to_user_id);
+
 CREATE TABLE IF NOT EXISTS oa_doc_archive (
   archive_id INTEGER PRIMARY KEY AUTOINCREMENT,
   doc_id INTEGER NOT NULL,
@@ -538,6 +580,10 @@ INSERT OR IGNORE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, 
 (90, '公文中心', 1, 9, 'doc-center', 'oa/doc-center/index', 'C', '0', '0', 'oa:doc:list', 'document'),
 (91, '公文办理', 90, 1, '', NULL, 'F', '0', '0', 'oa:doc:action', '#'),
 (92, '公文类型', 90, 2, '', NULL, 'F', '0', '0', 'oa:docType:list', '#'),
+(93, '附件查看', 90, 3, '', NULL, 'F', '0', '0', 'oa:document:list', '#'),
+(94, '附件上传', 90, 4, '', NULL, 'F', '0', '0', 'oa:document:upload', '#'),
+(95, '附件下载', 90, 5, '', NULL, 'F', '0', '0', 'oa:document:query', '#'),
+(96, '附件删除', 90, 6, '', NULL, 'F', '0', '0', 'oa:document:remove', '#'),
 (100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting'),
 (101, '岗位管理', 100, 1, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard'),
 (102, '操作日志', 100, 2, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
@@ -560,6 +606,10 @@ INSERT OR IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 90),
 (1, 91),
 (1, 92),
+(1, 93),
+(1, 94),
+(1, 95),
+(1, 96),
 (1, 100),
 (1, 101),
 (1, 102),
@@ -573,4 +623,8 @@ INSERT OR IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 60),
 (2, 80),
 (2, 90),
-(2, 91);
+(2, 91),
+(2, 93),
+(2, 94),
+(2, 95),
+(2, 96);

@@ -5,6 +5,7 @@ import com.oa.common.core.page.TableDataInfo;
 import com.oa.common.core.result.AjaxResult;
 import com.oa.system.domain.SysUser;
 import com.oa.system.service.ISysUserService;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -32,6 +33,11 @@ public class SysUserController extends BaseController {
         return getDataTable(list);
     }
 
+    @GetMapping("/contacts")
+    public AjaxResult contacts() {
+        return AjaxResult.success(userService.selectUserList(new SysUser()));
+    }
+
     @PreAuthorize("@ss.hasPermi('system:user:query')")
     @GetMapping("/{userId}")
     public AjaxResult getInfo(@PathVariable Long userId) {
@@ -41,8 +47,11 @@ public class SysUserController extends BaseController {
     @PreAuthorize("@ss.hasPermi('system:user:add')")
     @PostMapping
     public AjaxResult add(@RequestBody SysUser user) {
+        if (StringUtils.isBlank(user.getUsername()) || StringUtils.isBlank(user.getPassword())) {
+            return AjaxResult.error(400, "用户名和密码不能为空");
+        }
         if (userService.selectSysUserByUsername(user.getUsername()) != null) {
-            return AjaxResult.error("用户名已存在");
+            return AjaxResult.error(409, "用户名已存在");
         }
         return toAjax(userService.insertUser(user));
     }

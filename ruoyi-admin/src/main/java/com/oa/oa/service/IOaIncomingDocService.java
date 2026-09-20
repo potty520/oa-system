@@ -8,6 +8,7 @@ import java.util.List;
 public interface IOaIncomingDocService extends IService<OaIncomingDoc> {
     List<OaIncomingDoc> selectOaIncomingDocList(OaIncomingDoc doc);
     OaIncomingDoc selectOaIncomingDocById(Long docId);
+    boolean existsByDocNumber(String docNumber, Long excludeId);
     int insertOaIncomingDoc(OaIncomingDoc doc);
     int updateOaIncomingDoc(OaIncomingDoc doc);
     int deleteOaIncomingDocByIds(Long[] docIds);

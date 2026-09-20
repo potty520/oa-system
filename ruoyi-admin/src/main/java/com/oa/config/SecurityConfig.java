@@ -44,6 +44,15 @@ public class SecurityConfig {
         http
             .cors().and()
             .csrf().disable()
+            .logout()
+            .logoutUrl("/logout")
+            .deleteCookies("OA-Token")
+            .logoutSuccessHandler((request, response, authentication) -> {
+                response.setStatus(200);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"code\":200,\"msg\":\"退出成功\"}");
+            })
+            .and()
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeRequests()

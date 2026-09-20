@@ -4,6 +4,7 @@ import com.oa.common.core.controller.BaseController;
 import com.oa.common.core.result.AjaxResult;
 import com.oa.system.domain.SysDept;
 import com.oa.system.service.ISysDeptService;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -30,6 +31,9 @@ public class SysDeptController extends BaseController {
     @PreAuthorize("@ss.hasPermi('system:dept:add')")
     @PostMapping
     public AjaxResult add(@RequestBody SysDept dept) {
+        if (StringUtils.isBlank(dept.getDeptName())) {
+            return AjaxResult.error(400, "部门名称不能为空");
+        }
         return toAjax(deptService.save(dept));
     }
 

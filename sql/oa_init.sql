@@ -643,6 +643,29 @@ CREATE TABLE oa_doc_reminder (
   KEY idx_to_user (to_user_id)
 ) ENGINE=InnoDB COMMENT='公文催办表';
 
+-- 公文委托代理表
+CREATE TABLE oa_doc_delegate (
+  delegate_id       BIGINT NOT NULL AUTO_INCREMENT COMMENT '委托代理ID',
+  doc_id            BIGINT NOT NULL COMMENT '公文ID',
+  doc_type          CHAR(1) NOT NULL COMMENT '公文类型（1收文 2发文）',
+  from_user_id      BIGINT DEFAULT NULL COMMENT '委托人ID',
+  from_user_name    VARCHAR(50) DEFAULT '' COMMENT '委托人姓名',
+  to_user_id        BIGINT DEFAULT NULL COMMENT '受托人ID',
+  to_user_name      VARCHAR(50) DEFAULT '' COMMENT '受托人姓名',
+  delegate_type     CHAR(1) DEFAULT '1' COMMENT '类型（1委托 2代理）',
+  opinion           VARCHAR(500) DEFAULT '' COMMENT '说明',
+  status            CHAR(1) DEFAULT '0' COMMENT '状态（0进行中 1已结束）',
+  create_by         VARCHAR(64) DEFAULT '' COMMENT '创建者',
+  create_time       DATETIME DEFAULT NULL COMMENT '创建时间',
+  update_by         VARCHAR(64) DEFAULT '' COMMENT '更新者',
+  update_time       DATETIME DEFAULT NULL COMMENT '更新时间',
+  del_flag          CHAR(1) DEFAULT '0' COMMENT '删除标志',
+  remark            VARCHAR(500) DEFAULT NULL COMMENT '备注',
+  PRIMARY KEY (delegate_id),
+  KEY idx_doc (doc_id, doc_type),
+  KEY idx_to_user (to_user_id)
+) ENGINE=InnoDB COMMENT='公文委托代理表';
+
 -- 公文归档表
 CREATE TABLE oa_doc_archive (
   archive_id        BIGINT NOT NULL AUTO_INCREMENT COMMENT '归档ID',
@@ -725,6 +748,10 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 (90, '公文中心', 1, 9, 'doc-center', 'oa/doc-center/index', 'C', '0', '0', 'oa:doc:list', 'document'),
 (91, '公文办理', 90, 1, '', NULL, 'F', '0', '0', 'oa:doc:action', '#'),
 (92, '公文类型', 90, 2, '', NULL, 'F', '0', '0', 'oa:docType:list', '#'),
+(93, '附件查看', 90, 3, '', NULL, 'F', '0', '0', 'oa:document:list', '#'),
+(94, '附件上传', 90, 4, '', NULL, 'F', '0', '0', 'oa:document:upload', '#'),
+(95, '附件下载', 90, 5, '', NULL, 'F', '0', '0', 'oa:document:query', '#'),
+(96, '附件删除', 90, 6, '', NULL, 'F', '0', '0', 'oa:document:remove', '#'),
 (100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting'),
 (101, '岗位管理', 100, 1, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard'),
 (102, '操作日志', 100, 2, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
@@ -732,11 +759,11 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 -- 角色菜单关联（管理员拥有所有权限）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1), (1, 10), (1, 11), (1, 12), (1, 13), (1, 20), (1, 30), (1, 31), (1, 32),
-(1, 40), (1, 50), (1, 60), (1, 70), (1, 80), (1, 90), (1, 91), (1, 92), (1, 100), (1, 101), (1, 102);
+(1, 40), (1, 50), (1, 60), (1, 70), (1, 80), (1, 90), (1, 91), (1, 92), (1, 93), (1, 94), (1, 95), (1, 96), (1, 100), (1, 101), (1, 102);
 
 -- 普通用户菜单（只有查看和自己的操作）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
-(2, 1), (2, 10), (2, 20), (2, 30), (2, 31), (2, 40), (2, 50), (2, 60), (2, 80), (2, 90), (2, 91);
+(2, 1), (2, 10), (2, 20), (2, 30), (2, 31), (2, 40), (2, 50), (2, 60), (2, 80), (2, 90), (2, 91), (2, 93), (2, 94), (2, 95), (2, 96);
 
 -- 默认公告
 INSERT IGNORE INTO oa_announcement (ann_id, ann_title, ann_type, ann_content, ann_level, is_public, status, create_by, create_time) VALUES

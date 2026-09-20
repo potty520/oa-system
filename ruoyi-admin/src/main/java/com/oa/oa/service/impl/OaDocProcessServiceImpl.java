@@ -31,6 +31,8 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
     private OaDocReminderMapper reminderMapper;
     @Autowired
     private OaDocArchiveMapper archiveMapper;
+    @Autowired
+    private OaDocDelegateMapper delegateMapper;
 
     @Override
     public Map<String, Object> getTimeline(String docType, Long docId) {
@@ -44,6 +46,10 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(OaDocCirculation::getDocId, docId)
                 .orderByDesc(OaDocCirculation::getCreateTime)));
         result.put("reminders", getReminderList(docType, docId));
+        result.put("delegates", delegateMapper.selectList(new LambdaQueryWrapper<OaDocDelegate>()
+                .eq(OaDocDelegate::getDocType, docType)
+                .eq(OaDocDelegate::getDocId, docId)
+                .orderByDesc(OaDocDelegate::getCreateTime)));
         result.put("archives", archiveMapper.selectList(new LambdaQueryWrapper<OaDocArchive>()
                 .eq(OaDocArchive::getDocType, docType)
                 .eq(OaDocArchive::getDocId, docId)
@@ -82,9 +88,12 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         if ("sign".equals(action)) {
             requireStatus(docType, DOC_OUTGOING, currentStatus, "1", "只有审核中的发文可以签发");
             setStatus(docType, docId, "2");
+            return;
         }
 
-        if (Arrays.asList("approve", "countersign", "return", "withdraw", "transfer", "circulate", "urge", "archive").contains(action)) {
+        validateActionState(docType, currentStatus, action);
+
+        if (Arrays.asList("approve", "countersign", "add_sign", "cancel_sign", "return", "withdraw", "transfer", "delegate", "agent", "circulate", "urge", "archive").contains(action)) {
             if ("approve".equals(action)) {
                 addApproval(docType, docId, "1", request, user);
                 if (DOC_OUTGOING.equals(docType) && "1".equals(currentStatus)) {
@@ -93,7 +102,44 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                     setStatus(docType, docId, "2");
                 }
             } else if ("countersign".equals(action)) {
-                addApproval(docType, docId, "5", request, user);
+                if (request.getTargetUserIds() != null && !request.getTargetUserIds().isEmpty()) {
+                    for (Long targetUserId : request.getTargetUserIds()) {
+                        addApprovalForUser(docType, docId, "5", request, user, targetUserId, request.getTargetUserName());
+                    }
+                } else {
+                    addApproval(docType, docId, "5", request, user);
+                }
+            } else if ("add_sign".equals(action)) {
+                requireTargetUsers(request, "加签需要选择用户");
+                for (Long targetUserId : request.getTargetUserIds()) {
+                    addApprovalForUser(docType, docId, "7", request, user, targetUserId, request.getTargetUserName());
+                }
+            } else if ("cancel_sign".equals(action)) {
+                if (request.getApprovalId() == null) {
+                    throw new IllegalArgumentException("撤签需要指定签批记录");
+                }
+                OaDocApproval approval = approvalMapper.selectById(request.getApprovalId());
+                if (approval == null || !Objects.equals(approval.getDocId(), docId) || !Objects.equals(approval.getDocType(), docType)) {
+                    throw new IllegalArgumentException("签批记录不存在");
+                }
+                approval.setApproveResult("8");
+                approval.setApproveRemark(StringUtils.defaultIfBlank(request.getOpinion(), "已撤签"));
+                approvalMapper.updateById(approval);
+            } else if ("delegate".equals(action) || "agent".equals(action)) {
+                if (request.getTargetUserId() == null) {
+                    throw new IllegalArgumentException("委托或代理需要选择目标用户");
+                }
+                OaDocDelegate delegate = new OaDocDelegate();
+                delegate.setDocId(docId);
+                delegate.setDocType(docType);
+                delegate.setFromUserId(user.getUserId());
+                delegate.setFromUserName(user.getUsername());
+                delegate.setToUserId(request.getTargetUserId());
+                delegate.setToUserName(request.getTargetUserName());
+                delegate.setDelegateType("agent".equals(action) ? "2" : "1");
+                delegate.setOpinion(request.getOpinion());
+                delegate.setStatus("0");
+                delegateMapper.insert(delegate);
             } else if ("return".equals(action)) {
                 addApproval(docType, docId, "3", request, user);
                 setStatus(docType, docId, DOC_OUTGOING.equals(docType) ? "0" : "1");
@@ -127,6 +173,9 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 reminder.setStatus("0");
                 reminderMapper.insert(reminder);
             } else if ("archive".equals(action)) {
+                if (!"2".equals(currentStatus)) {
+                    throw new IllegalStateException("只有已办结或已签发的公文可以归档");
+                }
                 OaDocArchive archive = new OaDocArchive();
                 archive.setDocId(docId);
                 archive.setDocType(docType);
@@ -192,6 +241,43 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(docType != null && !docType.isEmpty(), OaDocReminder::getDocType, docType)
                 .eq(docId != null, OaDocReminder::getDocId, docId)
                 .orderByDesc(OaDocReminder::getReminderTime));
+    }
+
+    private void requireTargetUsers(DocActionRequest request, String message) {
+        if (request.getTargetUserIds() == null || request.getTargetUserIds().isEmpty()) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
+    private void validateActionState(String docType, String status, String action) {
+        Set<String> allowed = new HashSet<>();
+        if (DOC_INCOMING.equals(docType)) {
+            if ("0".equals(status)) allowed.addAll(Arrays.asList("receive"));
+            if ("1".equals(status)) allowed.addAll(Arrays.asList("approve", "countersign", "add_sign", "cancel_sign", "return", "withdraw", "transfer", "delegate", "agent", "circulate", "urge", "complete"));
+            if ("2".equals(status)) allowed.addAll(Arrays.asList("archive", "circulate", "urge"));
+        } else if (DOC_OUTGOING.equals(docType)) {
+            if ("0".equals(status)) allowed.addAll(Arrays.asList("submit"));
+            if ("1".equals(status)) allowed.addAll(Arrays.asList("approve", "countersign", "add_sign", "cancel_sign", "return", "withdraw", "transfer", "delegate", "agent", "circulate", "urge", "sign"));
+            if ("2".equals(status)) allowed.addAll(Arrays.asList("archive", "circulate", "urge"));
+        }
+        if (!allowed.contains(action)) {
+            throw new IllegalStateException("当前状态不允许执行该操作: " + action);
+        }
+    }
+
+    private void addApprovalForUser(String docType, Long docId, String result, DocActionRequest request,
+                                    LoginUser operator, Long targetUserId, String targetUserName) {
+        OaDocApproval approval = new OaDocApproval();
+        approval.setDocId(docId);
+        approval.setDocType(docType);
+        approval.setFlowId(request.getFlowId());
+        approval.setStepId(request.getStepId());
+        approval.setUserId(targetUserId);
+        approval.setUserName(targetUserName);
+        approval.setApproveResult(result);
+        approval.setApproveRemark(request.getOpinion());
+        approval.setApproveTime(new Date());
+        approvalMapper.insert(approval);
     }
 
     private LoginUser requireUser() {

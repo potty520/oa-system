@@ -286,6 +286,25 @@ CREATE TABLE IF NOT EXISTS oa_reimbursement_approve_log (
   KEY idx_oa_reimbursement_approve_log_idx_reimb_id (reimb_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
 
+CREATE TABLE IF NOT EXISTS oa_document (
+  document_id BIGINT AUTO_INCREMENT NOT NULL,
+  document_name VARCHAR(200) NOT NULL,
+  document_type VARCHAR(50) DEFAULT '',
+  file_path VARCHAR(500) DEFAULT '',
+  file_size BIGINT DEFAULT 0,
+  user_id BIGINT,
+  user_name VARCHAR(50) DEFAULT '',
+  status CHAR(1) DEFAULT '0',
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (document_id),
+  KEY idx_oa_document_idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
 CREATE TABLE IF NOT EXISTS oa_doc_type (
   doc_type_id BIGINT AUTO_INCREMENT NOT NULL,
   type_name VARCHAR(100) NOT NULL,
@@ -471,6 +490,28 @@ CREATE TABLE IF NOT EXISTS oa_doc_reminder (
   KEY idx_oa_doc_reminder_idx_to_user (to_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
 
+CREATE TABLE IF NOT EXISTS oa_doc_delegate (
+  delegate_id BIGINT AUTO_INCREMENT NOT NULL,
+  doc_id BIGINT NOT NULL,
+  doc_type CHAR(1) NOT NULL,
+  from_user_id BIGINT,
+  from_user_name VARCHAR(50) DEFAULT '',
+  to_user_id BIGINT,
+  to_user_name VARCHAR(50) DEFAULT '',
+  delegate_type CHAR(1) DEFAULT '1',
+  opinion VARCHAR(500) DEFAULT '',
+  status CHAR(1) DEFAULT '0',
+  create_by VARCHAR(64) DEFAULT '',
+  create_time DATETIME,
+  update_by VARCHAR(64) DEFAULT '',
+  update_time DATETIME,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR(500),
+  PRIMARY KEY (delegate_id),
+  KEY idx_oa_doc_delegate_idx_doc (doc_id, doc_type),
+  KEY idx_oa_doc_delegate_idx_to_user (to_user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000;
+
 CREATE TABLE IF NOT EXISTS oa_doc_archive (
   archive_id BIGINT AUTO_INCREMENT NOT NULL,
   doc_id BIGINT NOT NULL,
@@ -543,6 +584,10 @@ INSERT IGNORE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, com
 (90, '公文中心', 1, 9, 'doc-center', 'oa/doc-center/index', 'C', '0', '0', 'oa:doc:list', 'document'),
 (91, '公文办理', 90, 1, '', NULL, 'F', '0', '0', 'oa:doc:action', '#'),
 (92, '公文类型', 90, 2, '', NULL, 'F', '0', '0', 'oa:docType:list', '#'),
+(93, '附件查看', 90, 3, '', NULL, 'F', '0', '0', 'oa:document:list', '#'),
+(94, '附件上传', 90, 4, '', NULL, 'F', '0', '0', 'oa:document:upload', '#'),
+(95, '附件下载', 90, 5, '', NULL, 'F', '0', '0', 'oa:document:query', '#'),
+(96, '附件删除', 90, 6, '', NULL, 'F', '0', '0', 'oa:document:remove', '#'),
 (100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting'),
 (101, '岗位管理', 100, 1, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard'),
 (102, '操作日志', 100, 2, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
@@ -565,6 +610,10 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 90),
 (1, 91),
 (1, 92),
+(1, 93),
+(1, 94),
+(1, 95),
+(1, 96),
 (1, 100),
 (1, 101),
 (1, 102),
@@ -578,4 +627,8 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 60),
 (2, 80),
 (2, 90),
-(2, 91);
+(2, 91),
+(2, 93),
+(2, 94),
+(2, 95),
+(2, 96);

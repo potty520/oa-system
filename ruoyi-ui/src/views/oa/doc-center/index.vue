@@ -62,6 +62,20 @@
           <el-table-column label="操作" width="180" align="center"><template slot-scope="scope"><el-button size="mini" type="text" @click="previewTemplate(scope.row)">套红预览</el-button><el-button size="mini" type="text" @click="openTemplateDialog(scope.row)">编辑</el-button><el-button size="mini" type="text" @click="deleteTemplate(scope.row)">删除</el-button></template></el-table-column>
         </el-table>
       </el-tab-pane>
+      <el-tab-pane label="附件管理" name="document">
+        <el-upload :http-request="uploadDocument" :show-file-list="false" action="#">
+          <el-button type="primary" icon="el-icon-upload2">上传附件</el-button>
+        </el-upload>
+        <el-table v-loading="loading" :data="documentList" border style="margin-top:12px">
+          <el-table-column label="文件名" prop="documentName" min-width="220" show-overflow-tooltip />
+          <el-table-column label="类型" prop="documentType" width="120" />
+          <el-table-column label="大小" width="110" align="right"><template slot-scope="scope">{{ formatSize(scope.row.fileSize) }}</template></el-table-column>
+          <el-table-column label="上传人" prop="userName" width="110" />
+          <el-table-column label="上传时间" prop="createTime" width="170" align="center" />
+          <el-table-column label="操作" width="160" align="center"><template slot-scope="scope"><el-button size="mini" type="text" @click="downloadDocument(scope.row)">下载</el-button><el-button size="mini" type="text" @click="deleteDocument(scope.row)">删除</el-button></template></el-table-column>
+        </el-table>
+      </el-tab-pane>
+
     </el-tabs>
 
     <el-dialog title="公文类型" :visible.sync="typeDialogVisible" width="520px" append-to-body>
@@ -73,11 +87,35 @@
       </el-form>
       <div slot="footer"><el-button @click="typeDialogVisible = false">取消</el-button><el-button type="primary" @click="submitType">确定</el-button></div>
     </el-dialog>
+
+    <el-dialog title="模板与套红" :visible.sync="templateDialogVisible" width="760px" append-to-body>
+      <el-form ref="templateForm" :model="templateForm" :rules="templateRules" label-width="100px">
+        <el-form-item label="模板名称" prop="templateName"><el-input v-model="templateForm.templateName" placeholder="请输入模板名称" /></el-form-item>
+        <el-form-item label="适用类型"><el-radio-group v-model="templateForm.docType"><el-radio label="1">收文</el-radio><el-radio label="2">发文</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="红头文字"><el-input v-model="templateForm.redHeaderText" placeholder="请输入红头文字" @input="templatePreview = { ...templateForm }" /></el-form-item>
+        <el-form-item label="标题字体/字号">
+          <el-input v-model="templateForm.titleFont" placeholder="字体" style="width:180px;margin-right:10px" />
+          <el-input-number v-model="templateForm.titleSize" :min="8" :max="72" />
+        </el-form-item>
+        <el-form-item label="正文字体/字号">
+          <el-input v-model="templateForm.bodyFont" placeholder="字体" style="width:180px;margin-right:10px" />
+          <el-input-number v-model="templateForm.bodySize" :min="8" :max="72" />
+        </el-form-item>
+        <el-form-item label="模板内容"><el-input v-model="templateForm.templateContent" type="textarea" :rows="3" placeholder="请输入模板内容" /></el-form-item>
+        <el-form-item label="状态"><el-radio-group v-model="templateForm.status"><el-radio label="0">启用</el-radio><el-radio label="1">停用</el-radio></el-radio-group></el-form-item>
+      </el-form>
+      <div class="red-header-preview">
+        <h1 :style="{ fontFamily: templatePreview.titleFont, fontSize: templatePreview.titleSize + 'px' }">{{ templatePreview.redHeaderText || '红头文字预览' }}</h1>
+        <p :style="{ fontFamily: templatePreview.bodyFont, fontSize: templatePreview.bodySize + 'px' }">{{ templatePreview.templateContent || '模板内容预览' }}</p>
+      </div>
+      <div slot="footer"><el-button @click="templateDialogVisible = false">取消</el-button><el-button type="primary" @click="submitTemplate">保存并预览</el-button></div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { myCirculation, markRead, myDone, archiveList, docTypeList, addDocType, editDocType, removeDocType, docTemplateList, addDocTemplate, editDocTemplate, removeDocTemplate } from '@/api/oa/docProcess'
+import { list as documentListApi, upload as uploadDocumentApi, remove as removeDocumentApi, downloadUrl } from '@/api/oa/document'
 
 export default {
   name: 'DocCenter',
@@ -90,12 +128,14 @@ export default {
       archiveRows: [],
       typeList: [],
       templateList: [],
+      documentList: [],
       typeDialogVisible: false,
       typeForm: {},
       templateDialogVisible: false,
       templateForm: {},
-      templatePreview: null,
-      typeRules: {  typeName: [{ required: true, message: '请输入类型名称', trigger: 'blur' }], typeCode: [{ required: true, message: '请输入类型编码', trigger: 'blur' }] }
+      templatePreview: {},
+      typeRules: {  typeName: [{ required: true, message: '请输入类型名称', trigger: 'blur' }], typeCode: [{ required: true, message: '请输入类型编码', trigger: 'blur' }] },
+      templateRules: { templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }] }
     }
   },
   created() { this.loadAll() },
@@ -107,19 +147,25 @@ export default {
         myDone(),
         archiveList({ pageNum: 1, pageSize: 100 }),
         docTypeList({}),
-        docTemplateList({})
-      ]).then(([circulation, done, archives, types, templates]) => {
+        docTemplateList({}),
+        documentListApi({ pageNum: 1, pageSize: 100 })
+      ]).then(([circulation, done, archives, types, templates, documents]) => {
         this.circulationList = circulation.data || []
         this.doneList = done.data || []
         this.archiveRows = archives.rows || []
         this.typeList = types.data || []
         this.templateList = templates.data || []
+        this.documentList = documents.rows || []
       }).finally(() => { this.loading = false })
     },
     openTemplateDialog(row) { this.templateForm = row ? { ...row } : { templateName: '', docType: '2', redHeaderText: '', titleFont: 'SimSun', titleSize: 22, bodyFont: 'FangSong', bodySize: 16, templateContent: '', status: '0' }; this.templatePreview = { ...this.templateForm }; this.templateDialogVisible = true },
     previewTemplate(row) { this.templatePreview = { ...row }; this.templateForm = { ...row }; this.templateDialogVisible = true },
     submitTemplate() { this.$refs.templateForm.validate(valid => { if (!valid) return; const request = this.templateForm.templateId ? editDocTemplate(this.templateForm) : addDocTemplate(this.templateForm); request.then(() => { this.$message.success('保存成功'); this.templateDialogVisible = false; this.loadAll() }) }) },
     deleteTemplate(row) { this.$confirm('确认删除该模板吗？', '提示', { type: 'warning' }).then(() => removeDocTemplate(row.templateId)).then(() => { this.$message.success('删除成功'); this.loadAll() }).catch(() => {}) },
+    uploadDocument(request) { const data = new FormData(); data.append('file', request.file); uploadDocumentApi(data).then(() => { this.$message.success('上传成功'); this.loadAll() }).catch(() => request.onError()) },
+    downloadDocument(row) { window.location.href = downloadUrl(row.documentId) },
+    deleteDocument(row) { this.$confirm('确认删除该附件吗？', '提示', { type: 'warning' }).then(() => removeDocumentApi(row.documentId)).then(() => { this.$message.success('删除成功'); this.loadAll() }).catch(() => {}) },
+    formatSize(size) { if (!size) return '0 B'; if (size < 1024) return size + ' B'; if (size < 1048576) return (size / 1024).toFixed(1) + ' KB'; return (size / 1048576).toFixed(1) + ' MB' },
     handleRead(row) { markRead(row.circulationId).then(() => { this.$message.success('已标记为已读'); this.loadAll() }) },
     openTypeDialog(row) {
       this.typeForm = row ? { ...row } : { typeName: '', typeCode: '', sortOrder: 0, status: '0' }

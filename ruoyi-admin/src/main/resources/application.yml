@@ -1,3 +1,7 @@
+app:
+  upload:
+    path: ${UPLOAD_PATH:./oa-upload}
+
 server:
   port: 8080
 

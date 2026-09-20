@@ -294,6 +294,26 @@ CREATE TABLE oa_reimbursement_approve_log (
 
 CREATE INDEX ix_oa_reimbur_fe745076 ON oa_reimbursement_approve_log(reimb_id);
 
+CREATE TABLE oa_document (
+  document_id BIGINT IDENTITY(1000,1) NOT NULL,
+  document_name VARCHAR2(200) NOT NULL,
+  document_type VARCHAR2(50) DEFAULT ' ',
+  file_path VARCHAR2(500) DEFAULT ' ',
+  file_size NUMBER(19) DEFAULT 0,
+  user_id NUMBER(19),
+  user_name VARCHAR2(50) DEFAULT ' ',
+  status CHAR(1) DEFAULT '0',
+  create_by VARCHAR2(64) DEFAULT ' ',
+  create_time TIMESTAMP,
+  update_by VARCHAR2(64) DEFAULT ' ',
+  update_time TIMESTAMP,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR2(500),
+  PRIMARY KEY (document_id)
+);
+
+CREATE INDEX ix_oa_documen_0ae88b46 ON oa_document(user_id);
+
 CREATE TABLE oa_doc_type (
   doc_type_id BIGINT IDENTITY(1000,1) NOT NULL,
   type_name VARCHAR2(100) NOT NULL,
@@ -487,6 +507,30 @@ CREATE INDEX ix_oa_doc_rem_2d511d29 ON oa_doc_reminder(doc_id, doc_type);
 
 CREATE INDEX ix_oa_doc_rem_a215c9af ON oa_doc_reminder(to_user_id);
 
+CREATE TABLE oa_doc_delegate (
+  delegate_id BIGINT IDENTITY(1000,1) NOT NULL,
+  doc_id NUMBER(19) NOT NULL,
+  doc_type CHAR(1) NOT NULL,
+  from_user_id NUMBER(19),
+  from_user_name VARCHAR2(50) DEFAULT ' ',
+  to_user_id NUMBER(19),
+  to_user_name VARCHAR2(50) DEFAULT ' ',
+  delegate_type CHAR(1) DEFAULT '1',
+  opinion VARCHAR2(500) DEFAULT ' ',
+  status CHAR(1) DEFAULT '0',
+  create_by VARCHAR2(64) DEFAULT ' ',
+  create_time TIMESTAMP,
+  update_by VARCHAR2(64) DEFAULT ' ',
+  update_time TIMESTAMP,
+  del_flag CHAR(1) DEFAULT '0',
+  remark VARCHAR2(500),
+  PRIMARY KEY (delegate_id)
+);
+
+CREATE INDEX ix_oa_doc_del_56b1529c ON oa_doc_delegate(doc_id, doc_type);
+
+CREATE INDEX ix_oa_doc_del_145efb34 ON oa_doc_delegate(to_user_id);
+
 CREATE TABLE oa_doc_archive (
   archive_id BIGINT IDENTITY(1000,1) NOT NULL,
   doc_id NUMBER(19) NOT NULL,
@@ -601,6 +645,14 @@ MERGE INTO sys_menu t USING (SELECT 91 AS menu_id, '公文办理' AS menu_name, 
 
 MERGE INTO sys_menu t USING (SELECT 92 AS menu_id, '公文类型' AS menu_name, 90 AS parent_id, 2 AS order_num, '' AS path, NULL AS component, 'F' AS menu_type, '0' AS visible, '0' AS status, 'oa:docType:list' AS perms, '#' AS icon FROM DUAL) s ON (t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (s.menu_id, s.menu_name, s.parent_id, s.order_num, s.path, s.component, s.menu_type, s.visible, s.status, s.perms, s.icon);
 
+MERGE INTO sys_menu t USING (SELECT 93 AS menu_id, '附件查看' AS menu_name, 90 AS parent_id, 3 AS order_num, '' AS path, NULL AS component, 'F' AS menu_type, '0' AS visible, '0' AS status, 'oa:document:list' AS perms, '#' AS icon FROM DUAL) s ON (t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (s.menu_id, s.menu_name, s.parent_id, s.order_num, s.path, s.component, s.menu_type, s.visible, s.status, s.perms, s.icon);
+
+MERGE INTO sys_menu t USING (SELECT 94 AS menu_id, '附件上传' AS menu_name, 90 AS parent_id, 4 AS order_num, '' AS path, NULL AS component, 'F' AS menu_type, '0' AS visible, '0' AS status, 'oa:document:upload' AS perms, '#' AS icon FROM DUAL) s ON (t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (s.menu_id, s.menu_name, s.parent_id, s.order_num, s.path, s.component, s.menu_type, s.visible, s.status, s.perms, s.icon);
+
+MERGE INTO sys_menu t USING (SELECT 95 AS menu_id, '附件下载' AS menu_name, 90 AS parent_id, 5 AS order_num, '' AS path, NULL AS component, 'F' AS menu_type, '0' AS visible, '0' AS status, 'oa:document:query' AS perms, '#' AS icon FROM DUAL) s ON (t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (s.menu_id, s.menu_name, s.parent_id, s.order_num, s.path, s.component, s.menu_type, s.visible, s.status, s.perms, s.icon);
+
+MERGE INTO sys_menu t USING (SELECT 96 AS menu_id, '附件删除' AS menu_name, 90 AS parent_id, 6 AS order_num, '' AS path, NULL AS component, 'F' AS menu_type, '0' AS visible, '0' AS status, 'oa:document:remove' AS perms, '#' AS icon FROM DUAL) s ON (t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (s.menu_id, s.menu_name, s.parent_id, s.order_num, s.path, s.component, s.menu_type, s.visible, s.status, s.perms, s.icon);
+
 MERGE INTO sys_menu t USING (SELECT 100 AS menu_id, '系统管理' AS menu_name, 0 AS parent_id, 2 AS order_num, 'system' AS path, NULL AS component, 'M' AS menu_type, '0' AS visible, '0' AS status, NULL AS perms, 'setting' AS icon FROM DUAL) s ON (t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (s.menu_id, s.menu_name, s.parent_id, s.order_num, s.path, s.component, s.menu_type, s.visible, s.status, s.perms, s.icon);
 
 MERGE INTO sys_menu t USING (SELECT 101 AS menu_id, '岗位管理' AS menu_name, 100 AS parent_id, 1 AS order_num, 'post' AS path, 'system/post/index' AS component, 'C' AS menu_type, '0' AS visible, '0' AS status, 'system:post:list' AS perms, 'postcard' AS icon FROM DUAL) s ON (t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (s.menu_id, s.menu_name, s.parent_id, s.order_num, s.path, s.component, s.menu_type, s.visible, s.status, s.perms, s.icon);
@@ -643,6 +695,14 @@ MERGE INTO sys_role_menu t USING (SELECT 1 AS role_id, 91 AS menu_id FROM DUAL) 
 
 MERGE INTO sys_role_menu t USING (SELECT 1 AS role_id, 92 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
 
+MERGE INTO sys_role_menu t USING (SELECT 1 AS role_id, 93 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
+
+MERGE INTO sys_role_menu t USING (SELECT 1 AS role_id, 94 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
+
+MERGE INTO sys_role_menu t USING (SELECT 1 AS role_id, 95 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
+
+MERGE INTO sys_role_menu t USING (SELECT 1 AS role_id, 96 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
+
 MERGE INTO sys_role_menu t USING (SELECT 1 AS role_id, 100 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
 
 MERGE INTO sys_role_menu t USING (SELECT 1 AS role_id, 101 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
@@ -670,3 +730,11 @@ MERGE INTO sys_role_menu t USING (SELECT 2 AS role_id, 80 AS menu_id FROM DUAL) 
 MERGE INTO sys_role_menu t USING (SELECT 2 AS role_id, 90 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
 
 MERGE INTO sys_role_menu t USING (SELECT 2 AS role_id, 91 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
+
+MERGE INTO sys_role_menu t USING (SELECT 2 AS role_id, 93 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
+
+MERGE INTO sys_role_menu t USING (SELECT 2 AS role_id, 94 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
+
+MERGE INTO sys_role_menu t USING (SELECT 2 AS role_id, 95 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);
+
+MERGE INTO sys_role_menu t USING (SELECT 2 AS role_id, 96 AS menu_id FROM DUAL) s ON (t.role_id = s.role_id AND t.menu_id = s.menu_id) WHEN NOT MATCHED THEN INSERT (role_id, menu_id) VALUES (s.role_id, s.menu_id);

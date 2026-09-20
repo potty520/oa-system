@@ -7,6 +7,7 @@ import com.oa.system.mapper.SysRoleMapper;
 import com.oa.system.service.ISysRoleService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -20,6 +21,49 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
                 .like(StringUtils.isNotBlank(role.getRoleKey()), SysRole::getRoleKey, role.getRoleKey())
                 .eq(StringUtils.isNotBlank(role.getStatus()), SysRole::getStatus, role.getStatus())
                 .orderByAsc(SysRole::getRoleSort);
-        return baseMapper.selectList(wrapper);
+        List<SysRole> roles = baseMapper.selectList(wrapper);
+        roles.forEach(this::enrichRole);
+        return roles;
+    }
+
+    @Override
+    public SysRole selectRoleById(Long roleId) {
+        SysRole role = baseMapper.selectById(roleId);
+        if (role != null) {
+            enrichRole(role);
+        }
+        return role;
+    }
+
+    @Override
+    @Transactional
+    public int saveRole(SysRole role) {
+        int rows = baseMapper.insert(role);
+        saveDepts(role.getRoleId(), role.getDeptIds());
+        return rows;
+    }
+
+    @Override
+    @Transactional
+    public int updateRole(SysRole role) {
+        int rows = baseMapper.updateById(role);
+        baseMapper.deleteRoleDeptByRoleId(role.getRoleId());
+        saveDepts(role.getRoleId(), role.getDeptIds());
+        return rows;
+    }
+
+    private void saveDepts(Long roleId, List<Long> deptIds) {
+        if (roleId == null || deptIds == null) {
+            return;
+        }
+        for (Long deptId : deptIds) {
+            if (deptId != null) {
+                baseMapper.insertRoleDept(roleId, deptId);
+            }
+        }
+    }
+
+    private void enrichRole(SysRole role) {
+        role.setDeptIds(baseMapper.selectDeptIdsByRoleId(role.getRoleId()));
     }
 }

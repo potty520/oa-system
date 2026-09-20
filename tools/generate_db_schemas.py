@@ -22,7 +22,7 @@ ACTIVE_TABLES = {
     "oa_reimbursement_detail", "oa_reimbursement_approve_log", "oa_incoming_doc",
     "oa_outgoing_doc", "oa_doc_flow", "oa_doc_flow_step",
     "sys_post", "sys_user_post", "sys_role_dept", "sys_oper_log",
-    "oa_doc_type", "oa_doc_template", "oa_doc_approval", "oa_doc_circulation", "oa_doc_reminder", "oa_doc_archive",
+    "oa_document", "oa_doc_type", "oa_doc_template", "oa_doc_approval", "oa_doc_circulation", "oa_doc_reminder", "oa_doc_delegate", "oa_doc_archive",
 }
 
 
@@ -144,13 +144,17 @@ SEEDS: dict[str, tuple[list[str], list[tuple]]] = {
         (90, "公文中心", 1, 9, "doc-center", "oa/doc-center/index", "C", "0", "0", "oa:doc:list", "document"),
         (91, "公文办理", 90, 1, "", None, "F", "0", "0", "oa:doc:action", "#"),
         (92, "公文类型", 90, 2, "", None, "F", "0", "0", "oa:docType:list", "#"),
+        (93, "附件查看", 90, 3, "", None, "F", "0", "0", "oa:document:list", "#"),
+        (94, "附件上传", 90, 4, "", None, "F", "0", "0", "oa:document:upload", "#"),
+        (95, "附件下载", 90, 5, "", None, "F", "0", "0", "oa:document:query", "#"),
+        (96, "附件删除", 90, 6, "", None, "F", "0", "0", "oa:document:remove", "#"),
         (100, "系统管理", 0, 2, "system", None, "M", "0", "0", None, "setting"),
         (101, "岗位管理", 100, 1, "post", "system/post/index", "C", "0", "0", "system:post:list", "postcard"),
         (102, "操作日志", 100, 2, "log", "system/log/index", "C", "0", "0", "system:log:list", "document-checked"),
     ]),
     "sys_role_menu": (["role_id", "menu_id"], [
-        (1, 1), (1, 10), (1, 11), (1, 12), (1, 13), (1, 20), (1, 30), (1, 31), (1, 32), (1, 40), (1, 50), (1, 60), (1, 70), (1, 80), (1, 90), (1, 91), (1, 92), (1, 100), (1, 101), (1, 102),
-        (2, 1), (2, 10), (2, 20), (2, 30), (2, 31), (2, 40), (2, 50), (2, 60), (2, 80), (2, 90), (2, 91),
+        (1, 1), (1, 10), (1, 11), (1, 12), (1, 13), (1, 20), (1, 30), (1, 31), (1, 32), (1, 40), (1, 50), (1, 60), (1, 70), (1, 80), (1, 90), (1, 91), (1, 92), (1, 93), (1, 94), (1, 95), (1, 96), (1, 100), (1, 101), (1, 102),
+        (2, 1), (2, 10), (2, 20), (2, 30), (2, 31), (2, 40), (2, 50), (2, 60), (2, 80), (2, 90), (2, 91), (2, 93), (2, 94), (2, 95), (2, 96),
     ]),
 }
 

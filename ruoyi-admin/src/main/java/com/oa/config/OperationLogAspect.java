@@ -48,7 +48,7 @@ public class OperationLogAspect {
         try {
             Object result = joinPoint.proceed();
             log.setOperParam(serializeArgs(joinPoint.getArgs()));
-            log.setJsonResult(truncate(objectMapper.writeValueAsString(result), 2000));
+            log.setJsonResult(truncate(objectMapper.writeValueAsString(sanitize(result)), 2000));
             log.setStatus("0");
             log.setBusinessType("OTHER");
             operLogMapper.insert(log);
