@@ -1,0 +1,49 @@
+{
+  "name": "oa-system-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vue-cli-service serve",
+    "build:prod": "vue-cli-service build",
+    "build:stage": "vue-cli-service build --mode staging",
+    "preview": "vue-cli-service serve --mode production",
+    "lint": "eslint --ext .js,.vue src",
+    "fix": "eslint --ext .js,.vue src --fix"
+  },
+  "dependencies": {
+    "vue": "2.7.16",
+    "element-ui": "2.15.14",
+    "vuex": "3.6.2",
+    "vue-router": "3.6.5",
+    "core-js": "3.36.1",
+    "axios": "1.6.5",
+    "js-cookie": "3.0.5",
+    "nprogress": "0.2.0",
+    "path-to-regexp": "6.2.1",
+    "file-saver": "2.0.5",
+    "vue-cropper": "1.1.4",
+    "echarts": "5.4.3",
+    "@riophae/vue-treeselect": "0.4.0"
+  },
+  "devDependencies": {
+    "@vue/cli-plugin-babel": "~5.0.0",
+    "@vue/cli-plugin-eslint": "~5.0.0",
+    "@vue/cli-service": "~5.0.0",
+    "@babel/preset-env": "7.24.7",
+    "babel-core": "7.0.0-bridge.0",
+    "babel-jest": "27.0.6",
+    "babel-plugin-transform-runtime": "6.23.0",
+    "babel-preset-env": "7.0.0-beta.3",
+    "babel-preset-stage-2": "6.24.1",
+    "eslint": "8.43.0",
+    "eslint-plugin-vue": "9.16.1",
+    "sass": "1.77.8",
+    "sass-loader": "13.3.2",
+    "vue-template-compiler": "2.7.16"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}

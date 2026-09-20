@@ -1,0 +1,13 @@
+package com.oa.oa.service;
+
+import com.oa.oa.domain.OaTodo;
+
+import java.util.List;
+
+public interface ITodoService {
+    List<OaTodo> selectTodoList(Long userId, String todoTitle, String status);
+
+    int selectTodoCount(Long userId);
+
+    void completeTodo(String todoType, Long relatedId);
+}

@@ -1,0 +1,33 @@
+# Java / Maven
+target/
+*.class
+*.log
+
+# Frontend
+node_modules/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local configuration
+*.local
+.env.local
+# Local SQLite database
+*.db
+
+# Playwright CLI artifacts
+.playwright-cli/
+playwright-report/

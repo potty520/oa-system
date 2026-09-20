@@ -1,0 +1,99 @@
+.clearfix {
+  &:after {
+    visibility: hidden;
+    display: block;
+    font-size: 0;
+    content: " ";
+    clear: both;
+    height: 0;
+  }
+}
+
+.pull-left {
+  float: left;
+}
+
+.pull-right {
+  float: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mb8 {
+  margin-bottom: 8px;
+}
+
+.mr8 {
+  margin-right: 8px;
+}
+
+.mt8 {
+  margin-top: 8px;
+}
+
+.ml8 {
+  margin-left: 8px;
+}
+
+.mb16 {
+  margin-bottom: 16px;
+}
+
+.mr16 {
+  margin-right: 16px;
+}
+
+.mt16 {
+  margin-top: 16px;
+}
+
+.ml16 {
+  margin-left: 16px;
+}
+
+.p8 {
+  padding: 8px;
+}
+
+.p16 {
+  padding: 16px;
+}
+
+.app-container {
+  padding: 20px;
+}
+
+.page-container {
+  padding: 20px;
+}
+
+.filter-container {
+  padding-bottom: 10px;
+}
+
+.table-container {
+  padding: 10px 0;
+}
+
+.pagination-container {
+  padding: 10px 0;
+  text-align: right;
+}
+
+.el-button + .el-button {
+  margin-left: 5px;
+}
+
+.el-dialog__body {
+  padding: 20px;
+}
+
+.el-form-item__label {
+  font-weight: 500;
+}

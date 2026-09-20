@@ -1,0 +1,56 @@
+package com.oa.oa.controller;
+
+import com.oa.common.core.controller.BaseController;
+import com.oa.common.core.page.TableDataInfo;
+import com.oa.common.core.result.AjaxResult;
+import com.oa.oa.domain.OaOutgoingDoc;
+import com.oa.oa.service.IOaOutgoingDocService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/oa/outgoingDoc")
+public class OaOutgoingDocController extends BaseController {
+
+    @Autowired
+    private IOaOutgoingDocService outgoingDocService;
+
+    @GetMapping("/list")
+    public TableDataInfo list(OaOutgoingDoc doc) {
+        startPage();
+        List<OaOutgoingDoc> list = outgoingDocService.selectOaOutgoingDocList(doc);
+        return getDataTable(list);
+    }
+
+    @GetMapping("/{docId}")
+    public AjaxResult getInfo(@PathVariable Long docId) {
+        return AjaxResult.success(outgoingDocService.selectOaOutgoingDocById(docId));
+    }
+
+    @PostMapping
+    public AjaxResult add(@RequestBody OaOutgoingDoc doc) {
+        return toAjax(outgoingDocService.insertOaOutgoingDoc(doc));
+    }
+
+    @PutMapping
+    public AjaxResult edit(@RequestBody OaOutgoingDoc doc) {
+        return toAjax(outgoingDocService.updateOaOutgoingDoc(doc));
+    }
+
+    @DeleteMapping("/{docIds}")
+    public AjaxResult remove(@PathVariable Long[] docIds) {
+        return toAjax(outgoingDocService.deleteOaOutgoingDocByIds(docIds));
+    }
+
+    @PutMapping("/submit/{docId}")
+    public AjaxResult submit(@PathVariable Long docId) {
+        return toAjax(outgoingDocService.submitOaOutgoingDoc(docId));
+    }
+
+    @PutMapping("/sign/{docId}")
+    public AjaxResult sign(@PathVariable Long docId) {
+        return toAjax(outgoingDocService.signOaOutgoingDoc(docId));
+    }
+}
