@@ -12,6 +12,7 @@
     <el-table v-loading="loading" :data="tableData" border>
       <el-table-column label="发文标题" prop="docTitle" min-width="160" show-overflow-tooltip />
       <el-table-column label="发文编号" prop="docNumber" width="140" />
+      <el-table-column label="公文类型" prop="docTypeId" width="110" align="center"><template slot-scope="scope">{{ docTypeLabel(scope.row.docTypeId) }}</template></el-table-column>
       <el-table-column label="拟稿单位" prop="draftUnit" min-width="120" />
       <el-table-column label="拟稿日期" prop="draftDate" width="120" align="center" />
       <el-table-column label="紧急程度" prop="docLevel" width="90" align="center"><template slot-scope="scope">{{ levelLabel(scope.row.docLevel) }}</template></el-table-column>
@@ -36,6 +37,9 @@
           <el-col :span="12"><el-form-item label="发文编号" prop="docNumber"><el-input v-model="form.docNumber" /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="20">
+          <el-col :span="12"><el-form-item label="公文类型" prop="docTypeId"><el-select v-model="form.docTypeId" filterable clearable placeholder="请选择公文类型" style="width:100%"><el-option v-for="item in docTypeOptions" :key="item.docTypeId" :label="item.typeName" :value="item.docTypeId" :disabled="item.status !== '0'" /></el-select></el-form-item></el-col>
+        </el-row>
+        <el-row :gutter="20">
           <el-col :span="12"><el-form-item label="拟稿单位"><el-input v-model="form.draftUnit" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="拟稿日期"><el-date-picker v-model="form.draftDate" type="date" value-format="yyyy-MM-dd" style="width:100%" /></el-form-item></el-col>
         </el-row>
@@ -57,6 +61,7 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="发文标题" :span="2">{{ viewData.docTitle }}</el-descriptions-item>
         <el-descriptions-item label="发文编号">{{ viewData.docNumber }}</el-descriptions-item>
+        <el-descriptions-item label="公文类型">{{ docTypeLabel(viewData.docTypeId) }}</el-descriptions-item>
         <el-descriptions-item label="拟稿单位">{{ viewData.draftUnit }}</el-descriptions-item>
         <el-descriptions-item label="紧急程度">{{ levelLabel(viewData.docLevel) }}</el-descriptions-item>
         <el-descriptions-item label="密级">{{ secretLabel(viewData.docSecret) }}</el-descriptions-item>
@@ -71,6 +76,7 @@
 
 <script>
 import { list, getInfo, add, edit, remove, submit, sign } from '@/api/oa/outgoingDoc'
+import { docTypeList } from '@/api/oa/docProcess'
 import DocActionDialog from '../components/DocActionDialog'
 const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, draftUnit: '', draftDate: '', docLevel: '1', docSecret: '1', mainSend: '', copySend: '', summary: '', attachmentUrl: '', signUserId: null, signUserName: '', status: '0', remark: '' })
 export default {
@@ -78,18 +84,20 @@ export default {
   components: { DocActionDialog },
   data() {
     return {
-      loading: false, tableData: [], total: 0,
+      loading: false, tableData: [], total: 0, docTypeOptions: [],
       queryParams: { pageNum: 1, pageSize: 10, docTitle: undefined, docNumber: undefined, status: undefined },
       dialogVisible: false, dialogTitle: '', form: emptyForm(),
       rules: { docTitle: [{ required: true, message: '请输入发文标题', trigger: 'blur' }], docNumber: [{ required: true, message: '请输入发文编号', trigger: 'blur' }] },
       viewVisible: false, viewData: {}, actionVisible: false, actionDocId: null
     }
   },
-  created() { this.getList() },
+  created() { this.getDocTypes(); this.getList() },
   methods: {
     levelLabel(value) { return { '1': '普通', '2': '重要', '3': '紧急' }[value] || '普通' },
     secretLabel(value) { return { '1': '普通', '2': '秘密', '3': '机密', '4': '绝密' }[value] || '普通' },
     statusLabel(value) { return { '0': '草稿', '1': '审核中', '2': '已签发', '3': '已归档' }[value] || '未知' },
+    docTypeLabel(id) { const item = this.docTypeOptions.find(option => String(option.docTypeId) === String(id)); return item ? item.typeName : '未选择' },
+    getDocTypes() { docTypeList({}).then(res => { this.docTypeOptions = res.data || [] }) },
     getList() { this.loading = true; list(this.queryParams).then(res => { this.tableData = res.rows || []; this.total = res.total || 0 }).finally(() => { this.loading = false }) },
     handleQuery() { this.queryParams.pageNum = 1; this.getList() },
     resetQuery() { this.$refs.queryForm.resetFields(); this.handleQuery() },

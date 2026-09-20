@@ -13,6 +13,7 @@ public class OaDocTemplate extends BaseEntity {
     private Long templateId;
     private String templateName;
     private String docType;
+    private Long docTypeId;
     private String redHeaderText;
     private String titleFont;
     private Integer titleSize;

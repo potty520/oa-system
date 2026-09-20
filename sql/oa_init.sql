@@ -471,7 +471,8 @@ CREATE TABLE oa_doc_type (
 CREATE TABLE oa_doc_template (
   template_id       BIGINT NOT NULL AUTO_INCREMENT COMMENT '模板ID',
   template_name     VARCHAR(100) NOT NULL COMMENT '模板名称',
-  doc_type          CHAR(1) DEFAULT '2' COMMENT '适用类型（1收文 2发文）',
+  doc_type          CHAR(1) DEFAULT '2' COMMENT '文书方向（1收文 2发文）',
+  doc_type_id       BIGINT DEFAULT NULL COMMENT '公文类型ID',
   red_header_text   VARCHAR(200) DEFAULT '' COMMENT '红头文字',
   title_font        VARCHAR(100) DEFAULT 'SimSun' COMMENT '标题字体',
   title_size        INT DEFAULT 22 COMMENT '标题字号',

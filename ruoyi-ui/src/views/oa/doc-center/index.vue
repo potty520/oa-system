@@ -55,7 +55,8 @@
         <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button type="primary" plain icon="el-icon-plus" @click="openTemplateDialog()">新增模板</el-button></el-col></el-row>
         <el-table v-loading="loading" :data="templateList" border>
           <el-table-column label="模板名称" prop="templateName" />
-          <el-table-column label="适用类型" prop="docType" width="100" align="center"><template slot-scope="scope">{{ scope.row.docType === '1' ? '收文' : '发文' }}</template></el-table-column>
+          <el-table-column label="公文类型" prop="docTypeId" width="120" align="center"><template slot-scope="scope">{{ docTypeLabel(scope.row.docTypeId) }}</template></el-table-column>
+          <el-table-column label="文书方向" prop="docType" width="100" align="center"><template slot-scope="scope">{{ scope.row.docType === '1' ? '收文' : '发文' }}</template></el-table-column>
           <el-table-column label="红头文字" prop="redHeaderText" min-width="180" />
           <el-table-column label="标题字号" prop="titleSize" width="90" align="center" />
           <el-table-column label="状态" prop="status" width="90" align="center"><template slot-scope="scope">{{ scope.row.status === '0' ? '启用' : '停用' }}</template></el-table-column>
@@ -91,7 +92,8 @@
     <el-dialog title="模板与套红" :visible.sync="templateDialogVisible" width="760px" append-to-body>
       <el-form ref="templateForm" :model="templateForm" :rules="templateRules" label-width="100px">
         <el-form-item label="模板名称" prop="templateName"><el-input v-model="templateForm.templateName" placeholder="请输入模板名称" /></el-form-item>
-        <el-form-item label="适用类型"><el-radio-group v-model="templateForm.docType"><el-radio label="1">收文</el-radio><el-radio label="2">发文</el-radio></el-radio-group></el-form-item>
+        <el-form-item label="文书方向"><el-select v-model="templateForm.docType" style="width:100%"><el-option label="收文" value="1" /><el-option label="发文" value="2" /></el-select></el-form-item>
+        <el-form-item label="公文类型" prop="docTypeId"><el-select v-model="templateForm.docTypeId" filterable clearable placeholder="请选择公文类型" style="width:100%"><el-option v-for="item in docTypeOptions" :key="item.docTypeId" :label="item.typeName" :value="item.docTypeId" :disabled="item.status !== '0'" /></el-select></el-form-item>
         <el-form-item label="红头文字"><el-input v-model="templateForm.redHeaderText" placeholder="请输入红头文字" @input="templatePreview = { ...templateForm }" /></el-form-item>
         <el-form-item label="标题字体/字号">
           <el-input v-model="templateForm.titleFont" placeholder="字体" style="width:180px;margin-right:10px" />
@@ -128,6 +130,7 @@ export default {
       archiveRows: [],
       typeList: [],
       templateList: [],
+      docTypeOptions: [],
       documentList: [],
       typeDialogVisible: false,
       typeForm: {},
@@ -135,7 +138,7 @@ export default {
       templateForm: {},
       templatePreview: {},
       typeRules: {  typeName: [{ required: true, message: '请输入类型名称', trigger: 'blur' }], typeCode: [{ required: true, message: '请输入类型编码', trigger: 'blur' }] },
-      templateRules: { templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }] }
+      templateRules: { templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }], docTypeId: [{ required: true, message: '请选择公文类型', trigger: 'change' }] }
     }
   },
   created() { this.loadAll() },
@@ -154,11 +157,13 @@ export default {
         this.doneList = done.data || []
         this.archiveRows = archives.rows || []
         this.typeList = types.data || []
+        this.docTypeOptions = types.data || []
         this.templateList = templates.data || []
         this.documentList = documents.rows || []
       }).finally(() => { this.loading = false })
     },
-    openTemplateDialog(row) { this.templateForm = row ? { ...row } : { templateName: '', docType: '2', redHeaderText: '', titleFont: 'SimSun', titleSize: 22, bodyFont: 'FangSong', bodySize: 16, templateContent: '', status: '0' }; this.templatePreview = { ...this.templateForm }; this.templateDialogVisible = true },
+    docTypeLabel(id) { const item = this.docTypeOptions.find(option => String(option.docTypeId) === String(id)); return item ? item.typeName : '未选择' },
+    openTemplateDialog(row) { this.templateForm = row ? { ...row } : { templateName: '', docType: '2', docTypeId: null, redHeaderText: '', titleFont: 'SimSun', titleSize: 22, bodyFont: 'FangSong', bodySize: 16, templateContent: '', status: '0' }; this.templatePreview = { ...this.templateForm }; this.templateDialogVisible = true },
     previewTemplate(row) { this.templatePreview = { ...row }; this.templateForm = { ...row }; this.templateDialogVisible = true },
     submitTemplate() { this.$refs.templateForm.validate(valid => { if (!valid) return; const request = this.templateForm.templateId ? editDocTemplate(this.templateForm) : addDocTemplate(this.templateForm); request.then(() => { this.$message.success('保存成功'); this.templateDialogVisible = false; this.loadAll() }) }) },
     deleteTemplate(row) { this.$confirm('确认删除该模板吗？', '提示', { type: 'warning' }).then(() => removeDocTemplate(row.templateId)).then(() => { this.$message.success('删除成功'); this.loadAll() }).catch(() => {}) },

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.oa.common.core.controller.BaseController;
 import com.oa.common.core.result.AjaxResult;
 import com.oa.oa.domain.OaDocTemplate;
+import org.apache.commons.lang3.StringUtils;
 import com.oa.oa.mapper.OaDocTemplateMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -37,12 +38,18 @@ public class OaDocTemplateController extends BaseController {
     @PreAuthorize("@ss.hasPermi('oa:docTemplate:add')")
     @PostMapping
     public AjaxResult add(@RequestBody OaDocTemplate template) {
+        if (StringUtils.isBlank(template.getTemplateName()) || template.getDocTypeId() == null) {
+            return AjaxResult.error(400, "模板名称和公文类型不能为空");
+        }
         return toAjax(templateMapper.insert(template));
     }
 
     @PreAuthorize("@ss.hasPermi('oa:docTemplate:edit')")
     @PutMapping
     public AjaxResult edit(@RequestBody OaDocTemplate template) {
+        if (template.getTemplateId() == null || StringUtils.isBlank(template.getTemplateName()) || template.getDocTypeId() == null) {
+            return AjaxResult.error(400, "模板ID、模板名称和公文类型不能为空");
+        }
         return toAjax(templateMapper.updateById(template));
     }
 

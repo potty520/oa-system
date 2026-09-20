@@ -326,6 +326,7 @@ CREATE TABLE IF NOT EXISTS oa_doc_template (
   template_id BIGINT AUTO_INCREMENT NOT NULL,
   template_name VARCHAR(100) NOT NULL,
   doc_type CHAR(1) DEFAULT '2',
+  doc_type_id BIGINT,
   red_header_text VARCHAR(200) DEFAULT '',
   title_font VARCHAR(100) DEFAULT 'SimSun',
   title_size INT DEFAULT 22,
@@ -632,3 +633,13 @@ INSERT IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 94),
 (2, 95),
 (2, 96);
+
+INSERT IGNORE INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES
+(1000, '通知', 'TZ', 0, 1, '0'),
+(1001, '通报', 'TB', 0, 2, '0'),
+(1002, '决定', 'JD', 0, 3, '0'),
+(1003, '报告', 'BG', 0, 4, '0'),
+(1004, '请示', 'QS', 0, 5, '0'),
+(1005, '批复', 'PF', 0, 6, '0'),
+(1006, '函', 'HAN', 0, 7, '0'),
+(1007, '纪要', 'JY', 0, 8, '0');

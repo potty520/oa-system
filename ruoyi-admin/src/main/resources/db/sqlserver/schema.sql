@@ -402,6 +402,7 @@ CREATE TABLE oa_doc_template (
   template_id BIGINT IDENTITY(1000,1) NOT NULL,
   template_name NVARCHAR(100) NOT NULL,
   doc_type NCHAR(1) DEFAULT '2',
+  doc_type_id BIGINT,
   red_header_text NVARCHAR(200) DEFAULT '',
   title_font NVARCHAR(100) DEFAULT 'SimSun',
   title_size INT DEFAULT 22,
@@ -926,3 +927,31 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 95);
 
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 2 AND menu_id = 96)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (2, 96);
+
+SET IDENTITY_INSERT oa_doc_type ON;
+
+IF NOT EXISTS (SELECT 1 FROM oa_doc_type WHERE doc_type_id = 1000)
+INSERT INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES (1000, '通知', 'TZ', 0, 1, '0');
+
+IF NOT EXISTS (SELECT 1 FROM oa_doc_type WHERE doc_type_id = 1001)
+INSERT INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES (1001, '通报', 'TB', 0, 2, '0');
+
+IF NOT EXISTS (SELECT 1 FROM oa_doc_type WHERE doc_type_id = 1002)
+INSERT INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES (1002, '决定', 'JD', 0, 3, '0');
+
+IF NOT EXISTS (SELECT 1 FROM oa_doc_type WHERE doc_type_id = 1003)
+INSERT INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES (1003, '报告', 'BG', 0, 4, '0');
+
+IF NOT EXISTS (SELECT 1 FROM oa_doc_type WHERE doc_type_id = 1004)
+INSERT INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES (1004, '请示', 'QS', 0, 5, '0');
+
+IF NOT EXISTS (SELECT 1 FROM oa_doc_type WHERE doc_type_id = 1005)
+INSERT INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES (1005, '批复', 'PF', 0, 6, '0');
+
+IF NOT EXISTS (SELECT 1 FROM oa_doc_type WHERE doc_type_id = 1006)
+INSERT INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES (1006, '函', 'HAN', 0, 7, '0');
+
+IF NOT EXISTS (SELECT 1 FROM oa_doc_type WHERE doc_type_id = 1007)
+INSERT INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES (1007, '纪要', 'JY', 0, 8, '0');
+
+SET IDENTITY_INSERT oa_doc_type OFF;
