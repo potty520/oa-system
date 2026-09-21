@@ -58,13 +58,25 @@ $unauthorizedDelete=Api Delete ("/oa/incomingDoc/"+$inId) $null $zh; Check '普�
 $unauthNum="DENIED-ACTION-$suffix"; Api Post '/oa/incomingDoc' @{docNumber=$unauthNum;docTitle='越权审批测试';sourceUnit='测试';receiveDate='2026-09-20';docLevel='1';docSecret='1';docTypeId=1000;status='0'} $token|Out-Null
 $unauthList=Api Get ("/oa/incomingDoc/list?pageNum=1&pageSize=20&docNumber=$unauthNum") $null $token; $unauthDocId=($unauthList.rows|Select-Object -First 1).docId
 $unauthorizedAction=Api Post ("/oa/doc/action/1/$unauthDocId") @{action='receive';opinion='越权签收'} $zh; Check '普通用户公文处理人校验' ($unauthorizedAction.code -eq 403) $unauthorizedAction.msg
-$flowName="DENIED-FLOW-$suffix"; Api Post '/oa/docFlow' @{flowName=$flowName;flowType='2';description='越权回归';status='0';steps=@(@{stepName='领导签发';stepOrder=1;roleId=2;isSign='1'})} $token|Out-Null
+$flowName="AUTO-FLOW-$suffix"; Api Post '/oa/docFlow' @{flowName=$flowName;flowType='2';description='自动流转回归';status='0';steps=@(@{stepName='领导签发';stepOrder=1;roleId=2;isSign='1'})} $token|Out-Null
 $flowList=Api Get ("/oa/docFlow/list?pageNum=1&pageSize=20&flowName=$flowName") $null $token; $deniedFlowId=($flowList.rows|Select-Object -First 1).flowId
 $flowInfo=Api Get ("/oa/docFlow/$deniedFlowId") $null $token; $deniedStepId=($flowInfo.data.steps|Select-Object -First 1).stepId
-$flowDocNum="DENIED-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$flowDocNum;docTitle='流程角色越权测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;mainSend='测试单位';status='0'} $token|Out-Null
+$flowDocNum="AUTO-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$flowDocNum;docTitle='自动流转测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;flowId=$deniedFlowId;mainSend='测试单位';status='0'} $token|Out-Null
 $flowDocList=Api Get ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=$flowDocNum") $null $token; $flowDocId=($flowDocList.rows|Select-Object -First 1).docId
 Api Post ("/oa/doc/action/2/$flowDocId") @{action='submit'} $token|Out-Null
-$flowBypass=Api Post ("/oa/doc/action/2/$flowDocId") @{action='sign';flowId=$deniedFlowId;stepId=$deniedStepId;opinion='流程角色越权'} $zh
+$todoList=Api Get '/oa/todo/list?pageNum=1&pageSize=100&todoType=outgoing_doc' $null $zh
+Check '提交后自动流转到对应角色' (@($todoList.rows|Where-Object {$_.relatedId -eq $flowDocId}).Count -ge 1) "count=$(@($todoList.rows).Count)"
+$flowApprove=Api Post ("/oa/doc/action/2/$flowDocId") @{action='approve';opinion='同意'} $zh
+Check '角色待办审批处理' ($flowApprove.code -eq 200) $flowApprove.msg
+$flowDocAfter=Api Get ("/oa/outgoingDoc/$flowDocId") $null $token
+Check '流程末步骤自动完成' ($flowDocAfter.data.status -eq '2' -and $flowDocAfter.data.signUserId -eq 2) "status=$($flowDocAfter.data.status) signUser=$($flowDocAfter.data.signUserId)"
+
+$adminFlowName="BINDING-FLOW-$suffix"; Api Post '/oa/docFlow' @{flowName=$adminFlowName;flowType='2';description='绑定回归';status='0';steps=@(@{stepName='管理员步骤';stepOrder=1;roleId=1;isSign='1'})} $token|Out-Null
+$adminFlowList=Api Get ("/oa/docFlow/list?pageNum=1&pageSize=20&flowName=$adminFlowName") $null $token; $adminFlowId=($adminFlowList.rows|Select-Object -First 1).flowId
+$bindingDocNum="BINDING-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$bindingDocNum;docTitle='流程绑定越权测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;flowId=$adminFlowId;mainSend='测试单位';status='0'} $token|Out-Null
+$bindingList=Api Get ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=$bindingDocNum") $null $token; $bindingDocId=($bindingList.rows|Select-Object -First 1).docId
+Api Post ("/oa/doc/action/2/$bindingDocId") @{action='submit'} $token|Out-Null
+$flowBypass=Api Post ("/oa/doc/action/2/$bindingDocId") @{action='sign';flowId=$deniedFlowId;stepId=$deniedStepId;opinion='流程角色越权'} $zh
 Check '流程模板角色不能绕过公文分派' ($flowBypass.code -eq 403) $flowBypass.msg
 # self scope (5)
 Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();status='0'} $token|Out-Null
@@ -182,6 +194,8 @@ foreach($matrix in $matrixDocs){ if($matrix.Id){Api Delete ("/oa/"+($(if($matrix
 foreach($u in $createdUsers){ if($u){Api Delete ("/system/user/"+$u.userId) $null $token|Out-Null} }
 if($unauthDocId){Api Delete ("/oa/incomingDoc/"+$unauthDocId) $null $token|Out-Null}
 if($flowDocId){Api Delete ("/oa/outgoingDoc/"+$flowDocId) $null $token|Out-Null}
+if($bindingDocId){Api Delete ("/oa/outgoingDoc/"+$bindingDocId) $null $token|Out-Null}
 if($deniedFlowId){Api Delete ("/oa/docFlow/"+$deniedFlowId) $null $token|Out-Null}
+if($adminFlowId){Api Delete ("/oa/docFlow/"+$adminFlowId) $null $token|Out-Null}
 Api Delete ("/oa/incomingDoc/"+$inId) $null $token|Out-Null; Api Delete ("/oa/outgoingDoc/"+$outId) $null $token|Out-Null
 $results|Format-Table -AutoSize; $pass=@($results|Where-Object Result -eq 'PASS').Count; $fail=@($results|Where-Object Result -eq 'FAIL').Count; "SUMMARY PASS=$pass FAIL=$fail"

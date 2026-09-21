@@ -41,6 +41,7 @@
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12"><el-form-item label="公文类型" prop="docTypeId"><el-select v-model="form.docTypeId" filterable clearable placeholder="请选择公文类型" style="width:100%"><el-option v-for="item in docTypeOptions" :key="item.docTypeId" :label="item.typeName" :value="item.docTypeId" :disabled="item.status !== '0'" /></el-select></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="审批流程"><el-select v-model="form.flowId" clearable placeholder="仅一个流程时自动匹配" style="width:100%"><el-option v-for="item in flowOptions" :key="item.flowId" :label="item.flowName" :value="item.flowId" /></el-select></el-form-item></el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12"><el-form-item label="来文单位" prop="sourceUnit"><el-input v-model="form.sourceUnit" /></el-form-item></el-col>
@@ -78,6 +79,7 @@
 <script>
 import { list, getInfo, add, edit, remove, sign, complete } from '@/api/oa/incomingDoc'
 import { docTypeList } from '@/api/oa/docProcess'
+import { list as flowList } from '@/api/oa/docFlow'
 import DocActionDialog from '../components/DocActionDialog'
 const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, sourceUnit: '', receiveDate: '', docLevel: '1', docSecret: '1', summary: '', attachmentUrl: '', handlerId: null, handlerName: '', remark: '' })
 export default {
@@ -85,14 +87,14 @@ export default {
   components: { DocActionDialog },
   data() {
     return {
-      loading: false, tableData: [], total: 0, docTypeOptions: [],
+      loading: false, tableData: [], total: 0, docTypeOptions: [], flowOptions: [],
       queryParams: { pageNum: 1, pageSize: 10, docTitle: undefined, docNumber: undefined, status: undefined },
       dialogVisible: false, dialogTitle: '', form: emptyForm(),
       rules: { docTitle: [{ required: true, message: '请输入收文标题', trigger: 'blur' }], docNumber: [{ required: true, message: '请输入收文编号', trigger: 'blur' }] },
       viewVisible: false, viewData: {}, actionVisible: false, actionDocId: null
     }
   },
-  created() { this.getDocTypes(); this.getList() },
+  created() { this.getDocTypes(); this.getFlows(); this.getList() },
   methods: {
     hasPermi(permission) { const permissions = this.$store.getters.permissions || []; const user = this.$store.getters.userInfo || {}; return user.userId === 1 || permissions.includes('*:*:*') || permissions.includes(permission) },
     levelLabel(value) { return { '1': '普通', '2': '重要', '3': '紧急' }[value] || '普通' },
@@ -100,10 +102,11 @@ export default {
     statusLabel(value) { return { '0': '待签收', '1': '办理中', '2': '已办结', '3': '已归档' }[value] || '未知' },
     docTypeLabel(id) { const item = this.docTypeOptions.find(option => String(option.docTypeId) === String(id)); return item ? item.typeName : '未选择' },
     getDocTypes() { docTypeList({}).then(res => { this.docTypeOptions = res.data || [] }) },
+    getFlows() { flowList({ pageNum: 1, pageSize: 100, flowType: '1', status: '0' }).then(res => { this.flowOptions = res.rows || [] }) },
     getList() { this.loading = true; list(this.queryParams).then(res => { this.tableData = res.rows || []; this.total = res.total || 0 }).finally(() => { this.loading = false }) },
     handleQuery() { this.queryParams.pageNum = 1; this.getList() },
     resetQuery() { this.$refs.queryForm.resetFields(); this.handleQuery() },
-    handleAdd() { this.form = emptyForm(); this.dialogTitle = '新增收文'; this.dialogVisible = true },
+    handleAdd() { this.form = emptyForm(); if (this.flowOptions.length === 1) { this.form.flowId = this.flowOptions[0].flowId } this.dialogTitle = '新增收文'; this.dialogVisible = true },
     handleUpdate(row) { getInfo(row.docId).then(res => { this.form = Object.assign(emptyForm(), res.data || {}); this.dialogTitle = '编辑收文'; this.dialogVisible = true }) },
     handleView(row) { this.viewData = { ...row }; this.viewVisible = true },
     openAction(row) { this.actionDocId = row.docId; this.actionVisible = true },

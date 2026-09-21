@@ -23,4 +23,11 @@ public interface OaOutgoingDocMapper extends BaseMapper<OaOutgoingDoc> {
                       @Param("newStatus") String newStatus,
                       @Param("userId") Long userId,
                       @Param("userName") String userName);
+    @Update("UPDATE oa_outgoing_doc SET flow_id = #{flowId}, current_step_id = #{stepId}, current_step_order = #{stepOrder}, "
+            + "update_by = #{username}, update_time = CURRENT_TIMESTAMP WHERE doc_id = #{docId} AND del_flag = '0'")
+    int updateFlowState(@Param("docId") Long docId,
+                         @Param("flowId") Long flowId,
+                         @Param("stepId") Long stepId,
+                         @Param("stepOrder") Integer stepOrder,
+                         @Param("username") String username);
 }

@@ -40,6 +40,20 @@
             FROM oa_outgoing_doc
             WHERE del_flag = '0' AND status IN ('0','1')
               AND (sign_user_id = #{userId} OR create_by = #{userName} OR #{userId} = 1)
+            UNION ALL
+            SELECT a.approval_id, 'incoming_doc', d.doc_title,
+                   COALESCE(s.step_name, '待审批'), a.user_name, a.approve_time, '0', a.doc_id
+            FROM oa_doc_approval a
+            INNER JOIN oa_incoming_doc d ON d.doc_id = a.doc_id AND d.del_flag = '0'
+            LEFT JOIN oa_doc_flow_step s ON s.step_id = a.step_id
+            WHERE a.doc_type = '1' AND a.approve_result = '0' AND a.user_id = #{userId}
+            UNION ALL
+            SELECT a.approval_id, 'outgoing_doc', d.doc_title,
+                   COALESCE(s.step_name, '待审批'), a.user_name, a.approve_time, '0', a.doc_id
+            FROM oa_doc_approval a
+            INNER JOIN oa_outgoing_doc d ON d.doc_id = a.doc_id AND d.del_flag = '0'
+            LEFT JOIN oa_doc_flow_step s ON s.step_id = a.step_id
+            WHERE a.doc_type = '2' AND a.approve_result = '0' AND a.user_id = #{userId}
         ) t
         <where>
             <if test="todoTitleLike != null and todoTitleLike != ''">
@@ -67,6 +81,9 @@
             SELECT doc_id FROM oa_outgoing_doc
             WHERE status IN ('0','1') AND del_flag = '0'
               AND (sign_user_id = #{userId} OR #{userId} = 1)
+            UNION ALL
+            SELECT approval_id FROM oa_doc_approval
+            WHERE approve_result = '0' AND user_id = #{userId}
         ) t
     </select>
 </mapper>

@@ -29,27 +29,37 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         try (Connection connection = dataSource.getConnection()) {
-            ensureTemplateDocTypeColumn(connection);
+            ensureColumn(connection, "oa_doc_template", "doc_type_id", "BIGINT");
+            ensureColumn(connection, "oa_incoming_doc", "flow_id", "BIGINT");
+            ensureColumn(connection, "oa_incoming_doc", "current_step_id", "BIGINT");
+            ensureColumn(connection, "oa_incoming_doc", "current_step_order", "INTEGER");
+            ensureColumn(connection, "oa_outgoing_doc", "flow_id", "BIGINT");
+            ensureColumn(connection, "oa_outgoing_doc", "current_step_id", "BIGINT");
+            ensureColumn(connection, "oa_outgoing_doc", "current_step_order", "INTEGER");
             seedDocumentTypes(connection);
         }
     }
 
-    private void ensureTemplateDocTypeColumn(Connection connection) throws SQLException {
-        if (tableHasColumn(connection, "oa_doc_template", "doc_type_id")) {
+    private void ensureColumn(Connection connection, String tableName, String columnName, String type) throws SQLException {
+        if (tableHasColumn(connection, tableName, columnName)) {
             return;
         }
         String product = connection.getMetaData().getDatabaseProductName().toLowerCase();
+        String databaseType = "BIGINT".equals(type) && (product.contains("oracle") || product.equals("dm dbms") || product.contains("dameng"))
+                ? "NUMBER(19)"
+                : ("INTEGER".equals(type) && (product.contains("oracle") || product.equals("dm dbms") || product.contains("dameng"))
+                ? "NUMBER(10)" : type);
         String sql;
         if (product.contains("oracle") || product.equals("dm dbms") || product.contains("dameng")) {
-            sql = "ALTER TABLE oa_doc_template ADD (doc_type_id NUMBER(19))";
+            sql = "ALTER TABLE " + tableName + " ADD (" + columnName + " " + databaseType + ")";
         } else if (product.contains("sql server")) {
-            sql = "ALTER TABLE oa_doc_template ADD doc_type_id BIGINT";
+            sql = "ALTER TABLE " + tableName + " ADD " + columnName + " " + databaseType;
         } else {
-            sql = "ALTER TABLE oa_doc_template ADD COLUMN doc_type_id BIGINT";
+            sql = "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + databaseType;
         }
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
-            log.info("Added oa_doc_template.doc_type_id column");
+            log.info("Added {}.{} column", tableName, columnName);
         }
     }
 

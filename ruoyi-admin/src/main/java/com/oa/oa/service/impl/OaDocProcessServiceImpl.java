@@ -6,6 +6,7 @@ import com.oa.oa.mapper.*;
 import com.oa.oa.service.IOaDocProcessService;
 import com.oa.security.model.LoginUser;
 import com.oa.security.utils.SecurityUtils;
+import com.oa.system.mapper.SysUserMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
@@ -35,6 +36,12 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
     private OaDocArchiveMapper archiveMapper;
     @Autowired
     private OaDocDelegateMapper delegateMapper;
+    @Autowired
+    private OaDocFlowMapper flowMapper;
+    @Autowired
+    private OaDocFlowStepMapper flowStepMapper;
+    @Autowired
+    private SysUserMapper userMapper;
 
     @Override
     public Map<String, Object> getTimeline(String docType, Long docId) {
@@ -76,11 +83,13 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         if ("receive".equals(action)) {
             requireStatus(docType, DOC_INCOMING, currentStatus, "0", "只有待签收收文可以签收");
             setStatus(docType, docId, currentStatus, "1");
+            startDocumentFlow(docType, docId, user);
             return;
         }
         if ("submit".equals(action)) {
             requireStatus(docType, DOC_OUTGOING, currentStatus, "0", "只有草稿发文可以提交");
             setStatus(docType, docId, currentStatus, "1");
+            startDocumentFlow(docType, docId, user);
             return;
         }
         if ("complete".equals(action)) {
@@ -90,6 +99,10 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         }
         if ("sign".equals(action)) {
             requireStatus(docType, DOC_OUTGOING, currentStatus, "1", "只有审核中的发文可以签发");
+            if (hasFlowBinding(docType, docId)) {
+                completeDocumentStep(docType, docId, currentStatus, user, request, true);
+                return;
+            }
             int rows = outgoingDocMapper.signIfCurrent(docId, currentStatus, "2", user.getUserId(), user.getUsername());
             if (rows != 1) {
                 throw new IllegalStateException("公文状态已变化，请刷新后重试");
@@ -101,9 +114,13 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
 
         if (Arrays.asList("approve", "countersign", "add_sign", "cancel_sign", "return", "withdraw", "transfer", "delegate", "agent", "circulate", "urge", "archive").contains(action)) {
             if ("approve".equals(action)) {
-                addApproval(docType, docId, "1", request, user);
-                if (DOC_INCOMING.equals(docType) && "1".equals(currentStatus)) {
-                    setStatus(docType, docId, currentStatus, "2");
+                if (hasFlowBinding(docType, docId)) {
+                    completeDocumentStep(docType, docId, currentStatus, user, request, false);
+                } else {
+                    addApproval(docType, docId, "1", request, user);
+                    if (DOC_INCOMING.equals(docType) && "1".equals(currentStatus)) {
+                        setStatus(docType, docId, currentStatus, "2");
+                    }
                 }
             } else if ("countersign".equals(action)) {
                 if (request.getTargetUserIds() != null && !request.getTargetUserIds().isEmpty()) {
@@ -146,9 +163,13 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 delegateMapper.insert(delegate);
             } else if ("return".equals(action)) {
                 addApproval(docType, docId, "3", request, user);
+                cancelPendingAssignments(docType, docId, StringUtils.defaultIfBlank(request.getOpinion(), "已退回"));
+                clearFlowState(docType, docId);
                 setStatus(docType, docId, currentStatus, DOC_OUTGOING.equals(docType) ? "0" : "1");
             } else if ("withdraw".equals(action)) {
                 addApproval(docType, docId, "4", request, user);
+                cancelPendingAssignments(docType, docId, StringUtils.defaultIfBlank(request.getOpinion(), "已撤回"));
+                clearFlowState(docType, docId);
                 setStatus(docType, docId, currentStatus, "0");
             } else if ("transfer".equals(action)) {
                 if (request.getTargetUserId() == null) {
@@ -245,6 +266,190 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .orderByDesc(OaDocReminder::getReminderTime));
     }
 
+    private void startDocumentFlow(String docType, Long docId, LoginUser user) {
+        Long flowId = getDocumentFlowId(docType, docId);
+        if (flowId == null) {
+            flowId = findSingleActiveFlow(docType);
+            if (flowId == null) {
+                return;
+            }
+            updateDocumentFlowState(docType, docId, flowId, null, 0, user.getUsername());
+        }
+        OaDocFlow flow = flowMapper.selectById(flowId);
+        if (flow == null || !"0".equals(flow.getStatus()) || !docType.equals(flow.getFlowType())) {
+            throw new IllegalStateException("公文绑定的流程不存在或已停用");
+        }
+        List<OaDocFlowStep> steps = flowStepMapper.selectList(new LambdaQueryWrapper<OaDocFlowStep>()
+                .eq(OaDocFlowStep::getFlowId, flowId)
+                .orderByAsc(OaDocFlowStep::getStepOrder)
+                .orderByAsc(OaDocFlowStep::getStepId));
+        if (steps.isEmpty()) {
+            throw new IllegalStateException("流程未配置处理步骤");
+        }
+        OaDocFlowStep firstStep = steps.get(0);
+        assignStepToRole(docType, docId, flowId, firstStep, user.getUsername());
+        updateDocumentFlowState(docType, docId, flowId, firstStep.getStepId(), firstStep.getStepOrder(), user.getUsername());
+    }
+
+    private void completeDocumentStep(String docType, Long docId, String currentStatus, LoginUser user,
+                                      DocActionRequest request, boolean signing) {
+        Long flowId = getDocumentFlowId(docType, docId);
+        Long stepId = getDocumentCurrentStepId(docType, docId);
+        Integer stepOrder = getDocumentCurrentStepOrder(docType, docId);
+        if (flowId == null || stepId == null || stepOrder == null) {
+            throw new IllegalStateException("公文未进入有效流程");
+        }
+        List<OaDocApproval> assignments = approvalMapper.selectList(new LambdaQueryWrapper<OaDocApproval>()
+                .eq(OaDocApproval::getDocType, docType)
+                .eq(OaDocApproval::getDocId, docId)
+                .eq(OaDocApproval::getFlowId, flowId)
+                .eq(OaDocApproval::getStepId, stepId)
+                .eq(OaDocApproval::getUserId, user.getUserId())
+                .eq(OaDocApproval::getApproveResult, "0")
+                .orderByDesc(OaDocApproval::getApprovalId));
+        OaDocApproval assignment = assignments.isEmpty() ? null : assignments.get(0);
+        if (assignment == null) {
+            throw new AccessDeniedException("当前流程步骤未分配给该用户");
+        }
+        assignment.setApproveResult(signing ? "2" : "1");
+        assignment.setApproveRemark(request == null ? null : request.getOpinion());
+        assignment.setApproveTime(new Date());
+        approvalMapper.updateById(assignment);
+
+        List<OaDocApproval> peers = approvalMapper.selectList(new LambdaQueryWrapper<OaDocApproval>()
+                .eq(OaDocApproval::getDocType, docType)
+                .eq(OaDocApproval::getDocId, docId)
+                .eq(OaDocApproval::getFlowId, flowId)
+                .eq(OaDocApproval::getStepId, stepId)
+                .eq(OaDocApproval::getApproveResult, "0")
+                .ne(OaDocApproval::getApprovalId, assignment.getApprovalId()));
+        for (OaDocApproval peer : peers) {
+            peer.setApproveResult("9");
+            peer.setApproveRemark("该步骤已由其他处理人办理");
+            peer.setApproveTime(new Date());
+            approvalMapper.updateById(peer);
+        }
+
+        OaDocFlowStep nextStep = findNextStep(flowId, stepOrder);
+        if (nextStep != null) {
+            assignStepToRole(docType, docId, flowId, nextStep, user.getUsername());
+            updateDocumentFlowState(docType, docId, flowId, nextStep.getStepId(), nextStep.getStepOrder(), user.getUsername());
+            return;
+        }
+
+        updateDocumentFlowState(docType, docId, flowId, null, stepOrder, user.getUsername());
+        if (DOC_OUTGOING.equals(docType)) {
+            int rows = outgoingDocMapper.signIfCurrent(docId, currentStatus, "2", user.getUserId(), user.getUsername());
+            if (rows != 1) {
+                throw new IllegalStateException("公文状态已变化，请刷新后重试");
+            }
+        } else {
+            setStatus(docType, docId, currentStatus, "2");
+        }
+    }
+
+    private void assignStepToRole(String docType, Long docId, Long flowId, OaDocFlowStep step, String operator) {
+        if (step.getRoleId() == null) {
+            throw new IllegalStateException("流程步骤未配置角色");
+        }
+        List<com.oa.system.domain.SysUser> users = userMapper.selectUsersByRoleId(step.getRoleId());
+        if (users == null || users.isEmpty()) {
+            throw new IllegalStateException("流程步骤角色没有可用用户");
+        }
+        for (com.oa.system.domain.SysUser target : users) {
+            OaDocApproval approval = new OaDocApproval();
+            approval.setDocId(docId);
+            approval.setDocType(docType);
+            approval.setFlowId(flowId);
+            approval.setStepId(step.getStepId());
+            approval.setUserId(target.getUserId());
+            approval.setUserName(target.getUsername());
+            approval.setApproveResult("0");
+            approval.setApproveRemark("待" + (StringUtils.isBlank(step.getStepName()) ? "处理" : step.getStepName()));
+            approval.setApproveTime(new Date());
+            approvalMapper.insert(approval);
+        }
+    }
+
+    private OaDocFlowStep findNextStep(Long flowId, Integer currentOrder) {
+        List<OaDocFlowStep> steps = flowStepMapper.selectList(new LambdaQueryWrapper<OaDocFlowStep>()
+                .eq(OaDocFlowStep::getFlowId, flowId)
+                .gt(OaDocFlowStep::getStepOrder, currentOrder)
+                .orderByAsc(OaDocFlowStep::getStepOrder)
+                .orderByAsc(OaDocFlowStep::getStepId));
+        return steps.isEmpty() ? null : steps.get(0);
+    }
+
+    private Long findSingleActiveFlow(String docType) {
+        List<OaDocFlow> flows = flowMapper.selectList(new LambdaQueryWrapper<OaDocFlow>()
+                .eq(OaDocFlow::getFlowType, docType)
+                .eq(OaDocFlow::getStatus, "0")
+                .orderByAsc(OaDocFlow::getFlowId));
+        return flows != null && flows.size() == 1 ? flows.get(0).getFlowId() : null;
+    }
+
+    private boolean hasFlowBinding(String docType, Long docId) {
+        return getDocumentFlowId(docType, docId) != null;
+    }
+
+    private Long getDocumentFlowId(String docType, Long docId) {
+        if (DOC_INCOMING.equals(docType)) {
+            OaIncomingDoc doc = incomingDocMapper.selectById(docId);
+            return doc == null ? null : doc.getFlowId();
+        }
+        OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
+        return doc == null ? null : doc.getFlowId();
+    }
+
+    private Long getDocumentCurrentStepId(String docType, Long docId) {
+        if (DOC_INCOMING.equals(docType)) {
+            OaIncomingDoc doc = incomingDocMapper.selectById(docId);
+            return doc == null ? null : doc.getCurrentStepId();
+        }
+        OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
+        return doc == null ? null : doc.getCurrentStepId();
+    }
+
+    private Integer getDocumentCurrentStepOrder(String docType, Long docId) {
+        if (DOC_INCOMING.equals(docType)) {
+            OaIncomingDoc doc = incomingDocMapper.selectById(docId);
+            return doc == null ? null : doc.getCurrentStepOrder();
+        }
+        OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
+        return doc == null ? null : doc.getCurrentStepOrder();
+    }
+
+    private void updateDocumentFlowState(String docType, Long docId, Long flowId, Long stepId,
+                                         Integer stepOrder, String username) {
+        int rows;
+        if (DOC_INCOMING.equals(docType)) {
+            rows = incomingDocMapper.updateFlowState(docId, flowId, stepId, stepOrder, username);
+        } else {
+            rows = outgoingDocMapper.updateFlowState(docId, flowId, stepId, stepOrder, username);
+        }
+        if (rows != 1) {
+            throw new IllegalStateException("公文流程状态更新失败");
+        }
+    }
+
+    private void clearFlowState(String docType, Long docId) {
+        Long flowId = getDocumentFlowId(docType, docId);
+        updateDocumentFlowState(docType, docId, flowId, null, 0, SecurityUtils.getUsername());
+    }
+
+    private void cancelPendingAssignments(String docType, Long docId, String remark) {
+        List<OaDocApproval> pending = approvalMapper.selectList(new LambdaQueryWrapper<OaDocApproval>()
+                .eq(OaDocApproval::getDocType, docType)
+                .eq(OaDocApproval::getDocId, docId)
+                .eq(OaDocApproval::getApproveResult, "0"));
+        for (OaDocApproval approval : pending) {
+            approval.setApproveResult("9");
+            approval.setApproveRemark(remark);
+            approval.setApproveTime(new Date());
+            approvalMapper.updateById(approval);
+        }
+    }
+
     private void requireActionPermission(String docType, Long docId, String action,
                                          DocActionRequest request, LoginUser user) {
         if (SecurityUtils.isAdmin(user.getUserId())) {
@@ -258,7 +463,8 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
             return;
         }
         if ("sign".equals(action)
-                && (isAssignedSigner(docType, docId, user.getUserId()))) {
+                && (isAssignedSigner(docType, docId, user.getUserId())
+                || isPendingApprover(docType, docId, user.getUserId(), request))) {
             return;
         }
         if ("approve".equals(action)
@@ -319,7 +525,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(OaDocApproval::getDocType, docType)
                 .eq(OaDocApproval::getDocId, docId)
                 .eq(OaDocApproval::getUserId, userId)
-                .in(OaDocApproval::getApproveResult, Arrays.asList("5", "7"));
+                .in(OaDocApproval::getApproveResult, Arrays.asList("0", "5", "7"));
         if (request != null && request.getStepId() != null) {
             wrapper.eq(OaDocApproval::getStepId, request.getStepId());
         }

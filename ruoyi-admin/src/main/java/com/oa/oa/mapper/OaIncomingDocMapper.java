@@ -14,4 +14,11 @@ public interface OaIncomingDocMapper extends BaseMapper<OaIncomingDoc> {
                               @Param("expectedStatus") String expectedStatus,
                               @Param("newStatus") String newStatus,
                               @Param("username") String username);
+    @Update("UPDATE oa_incoming_doc SET flow_id = #{flowId}, current_step_id = #{stepId}, current_step_order = #{stepOrder}, "
+            + "update_by = #{username}, update_time = CURRENT_TIMESTAMP WHERE doc_id = #{docId} AND del_flag = '0'")
+    int updateFlowState(@Param("docId") Long docId,
+                         @Param("flowId") Long flowId,
+                         @Param("stepId") Long stepId,
+                         @Param("stepOrder") Integer stepOrder,
+                         @Param("username") String username);
 }

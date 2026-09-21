@@ -25,6 +25,12 @@ public class OaOutgoingDoc extends BaseEntity {
     private Long docTypeId;
 
     private Long templateId;
+
+    private Long flowId;
+
+    private Long currentStepId;
+
+    private Integer currentStepOrder;
     
     private String draftUnit;
     
