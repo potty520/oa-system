@@ -17,8 +17,11 @@ public class LoginUserCache {
         if (username == null || username.trim().isEmpty()) {
             return null;
         }
-        CacheEntry entry = cache.get(username);
         long now = System.currentTimeMillis();
+        if (cache.size() > 1000) {
+            cleanupExpired(now);
+        }
+        CacheEntry entry = cache.get(username);
         if (entry != null && entry.expiresAt > now) {
             return entry.user;
         }
@@ -39,6 +42,10 @@ public class LoginUserCache {
 
     public void evictAll() {
         cache.clear();
+    }
+
+    private void cleanupExpired(long now) {
+        cache.entrySet().removeIf(entry -> entry.getValue().expiresAt <= now);
     }
 
     private static class CacheEntry {

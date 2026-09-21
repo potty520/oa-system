@@ -13,6 +13,9 @@ public class JwtTokenBlacklist {
         if (token == null || token.trim().isEmpty() || expiresAt <= System.currentTimeMillis()) {
             return;
         }
+        if (revokedTokens.size() > 1000) {
+            cleanupExpired();
+        }
         revokedTokens.put(token, expiresAt);
     }
 
@@ -29,5 +32,10 @@ public class JwtTokenBlacklist {
             return false;
         }
         return true;
+    }
+
+    private void cleanupExpired() {
+        long now = System.currentTimeMillis();
+        revokedTokens.entrySet().removeIf(entry -> entry.getValue() <= now);
     }
 }

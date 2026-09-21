@@ -140,6 +140,7 @@ mysql -uroot -p oa_system < E:\api\oa-system\sql\oa_init.sql
 - **JWT_SECRET**：至少 32 字节的随机字符串；缺失或过短时应用拒绝启动。
 - **DB_PASSWORD**：数据库密码。
 - **CORS_ALLOWED_ORIGINS**：允许跨域的前端域名，多个域名用英文逗号分隔；默认仅允许本地 `http://localhost:18081`。
+- **TRUST_FORWARDED_HEADERS**：部署在可信反向代理后时设为 `true`，登录限流将使用 `X-Forwarded-For` 的首个地址；直连部署保持 `false`。
 - **PUBLIC_API_DOCS**：是否匿名开放 Swagger，默认 `false`，生产环境保持关闭。
 - **注册接口**：`/register` 已要求 `system:user:add` 权限，不再匿名开放。
 - **登录保护**：单用户连续失败 5 次锁定 15 分钟，错误提示统一为“用户名或密码错误”。

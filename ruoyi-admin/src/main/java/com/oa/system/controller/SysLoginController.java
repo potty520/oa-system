@@ -9,6 +9,7 @@ import com.oa.security.utils.SecurityUtils;
 import com.oa.system.domain.SysUser;
 import com.oa.system.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,11 +30,14 @@ public class SysLoginController {
     @Autowired
     private LoginAttemptService loginAttemptService;
 
+    @Value("${app.security.trust-forwarded-headers:false}")
+    private boolean trustForwardedHeaders;
+
     @PostMapping("/login")
     public AjaxResult login(@RequestBody Map<String, String> loginBody, HttpServletRequest request) {
         String username = loginBody.get("username");
         String password = loginBody.get("password");
-        String clientIp = request.getRemoteAddr();
+        String clientIp = resolveClientIp(request);
 
         if (StringUtils.isEmpty(username) || StringUtils.isEmpty(password)) {
             return AjaxResult.error(400, "用户名或密码不能为空");
@@ -63,6 +67,16 @@ public class SysLoginController {
         result.put("token", token);
         result.put("userInfo", userInfo);
         return AjaxResult.success("登录成功", result);
+    }
+
+    private String resolveClientIp(HttpServletRequest request) {
+        if (trustForwardedHeaders) {
+            String forwardedFor = request.getHeader("X-Forwarded-For");
+            if (StringUtils.isNotEmpty(forwardedFor)) {
+                return forwardedFor.split(",")[0].trim();
+            }
+        }
+        return request.getRemoteAddr();
     }
 
     @GetMapping("/getInfo")

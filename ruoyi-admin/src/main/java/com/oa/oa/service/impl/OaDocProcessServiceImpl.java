@@ -6,7 +6,6 @@ import com.oa.oa.mapper.*;
 import com.oa.oa.service.IOaDocProcessService;
 import com.oa.security.model.LoginUser;
 import com.oa.security.utils.SecurityUtils;
-import com.oa.system.mapper.SysUserMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
@@ -36,12 +35,6 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
     private OaDocArchiveMapper archiveMapper;
     @Autowired
     private OaDocDelegateMapper delegateMapper;
-    @Autowired
-    private OaDocFlowMapper flowMapper;
-    @Autowired
-    private OaDocFlowStepMapper flowStepMapper;
-    @Autowired
-    private SysUserMapper userMapper;
 
     @Override
     public Map<String, Object> getTimeline(String docType, Long docId) {
@@ -265,13 +258,12 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
             return;
         }
         if ("sign".equals(action)
-                && (isAssignedSigner(docType, docId, user.getUserId()) || hasFlowStepRole(docType, request, user.getUserId()))) {
+                && (isAssignedSigner(docType, docId, user.getUserId()))) {
             return;
         }
         if ("approve".equals(action)
                 && (isAssignedHandler(docType, docId, user.getUserId())
-                || isPendingApprover(docType, docId, user.getUserId())
-                || hasFlowStepRole(docType, request, user.getUserId()))) {
+                || isPendingApprover(docType, docId, user.getUserId(), request))) {
             return;
         }
         if (Arrays.asList("complete", "countersign", "add_sign", "cancel_sign", "return", "transfer",
@@ -280,8 +272,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
             return;
         }
         if (Arrays.asList("countersign", "add_sign", "cancel_sign", "return").contains(action)
-                && (isPendingApprover(docType, docId, user.getUserId())
-                || hasFlowStepRole(docType, request, user.getUserId()))) {
+                && isPendingApprover(docType, docId, user.getUserId(), request)) {
             return;
         }
         throw new AccessDeniedException("当前用户无权处理该公文");
@@ -320,15 +311,19 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 && doc.getCreateBy().equals(SecurityUtils.getUsername()));
     }
 
-    private boolean isPendingApprover(String docType, Long docId, Long userId) {
+    private boolean isPendingApprover(String docType, Long docId, Long userId, DocActionRequest request) {
         if (userId == null) {
             return false;
         }
-        return approvalMapper.selectCount(new LambdaQueryWrapper<OaDocApproval>()
+        LambdaQueryWrapper<OaDocApproval> wrapper = new LambdaQueryWrapper<OaDocApproval>()
                 .eq(OaDocApproval::getDocType, docType)
                 .eq(OaDocApproval::getDocId, docId)
                 .eq(OaDocApproval::getUserId, userId)
-                .in(OaDocApproval::getApproveResult, Arrays.asList("5", "7"))) > 0;
+                .in(OaDocApproval::getApproveResult, Arrays.asList("5", "7"));
+        if (request != null && request.getStepId() != null) {
+            wrapper.eq(OaDocApproval::getStepId, request.getStepId());
+        }
+        return approvalMapper.selectCount(wrapper) > 0;
     }
 
     private boolean isDocumentOwnerOrActiveDelegate(String docType, Long docId, LoginUser user) {
@@ -342,22 +337,6 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(OaDocDelegate::getDocId, docId)
                 .eq(OaDocDelegate::getToUserId, user.getUserId())
                 .eq(OaDocDelegate::getStatus, "0")) > 0;
-    }
-
-    private boolean hasFlowStepRole(String docType, DocActionRequest request, Long userId) {
-        if (request == null || request.getFlowId() == null || request.getStepId() == null || userId == null) {
-            return false;
-        }
-        OaDocFlow flow = flowMapper.selectById(request.getFlowId());
-        if (flow == null || !"0".equals(flow.getStatus()) || !docType.equals(flow.getFlowType())) {
-            return false;
-        }
-        OaDocFlowStep step = flowStepMapper.selectById(request.getStepId());
-        if (step == null || !Objects.equals(step.getFlowId(), flow.getFlowId()) || step.getRoleId() == null) {
-            return false;
-        }
-        List<Long> roleIds = userMapper.selectRoleIdsByUserId(userId);
-        return roleIds != null && roleIds.contains(step.getRoleId());
     }
 
     private void requireTargetUsers(DocActionRequest request, String message) {

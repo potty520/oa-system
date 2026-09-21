@@ -58,6 +58,14 @@ $unauthorizedDelete=Api Delete ("/oa/incomingDoc/"+$inId) $null $zh; Check '普�
 $unauthNum="DENIED-ACTION-$suffix"; Api Post '/oa/incomingDoc' @{docNumber=$unauthNum;docTitle='越权审批测试';sourceUnit='测试';receiveDate='2026-09-20';docLevel='1';docSecret='1';docTypeId=1000;status='0'} $token|Out-Null
 $unauthList=Api Get ("/oa/incomingDoc/list?pageNum=1&pageSize=20&docNumber=$unauthNum") $null $token; $unauthDocId=($unauthList.rows|Select-Object -First 1).docId
 $unauthorizedAction=Api Post ("/oa/doc/action/1/$unauthDocId") @{action='receive';opinion='越权签收'} $zh; Check '普通用户公文处理人校验' ($unauthorizedAction.code -eq 403) $unauthorizedAction.msg
+$flowName="DENIED-FLOW-$suffix"; Api Post '/oa/docFlow' @{flowName=$flowName;flowType='2';description='越权回归';status='0';steps=@(@{stepName='领导签发';stepOrder=1;roleId=2;isSign='1'})} $token|Out-Null
+$flowList=Api Get ("/oa/docFlow/list?pageNum=1&pageSize=20&flowName=$flowName") $null $token; $deniedFlowId=($flowList.rows|Select-Object -First 1).flowId
+$flowInfo=Api Get ("/oa/docFlow/$deniedFlowId") $null $token; $deniedStepId=($flowInfo.data.steps|Select-Object -First 1).stepId
+$flowDocNum="DENIED-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$flowDocNum;docTitle='流程角色越权测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;mainSend='测试单位';status='0'} $token|Out-Null
+$flowDocList=Api Get ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=$flowDocNum") $null $token; $flowDocId=($flowDocList.rows|Select-Object -First 1).docId
+Api Post ("/oa/doc/action/2/$flowDocId") @{action='submit'} $token|Out-Null
+$flowBypass=Api Post ("/oa/doc/action/2/$flowDocId") @{action='sign';flowId=$deniedFlowId;stepId=$deniedStepId;opinion='流程角色越权'} $zh
+Check '流程模板角色不能绕过公文分派' ($flowBypass.code -eq 403) $flowBypass.msg
 # self scope (5)
 Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();status='0'} $token|Out-Null
 $selfScope=Api Get '/system/user/contacts' $null $zh; Check '仅本人数据范围' (@($selfScope.data).Count  -eq  1) "count=$(@($selfScope.data).Count)"
@@ -173,5 +181,7 @@ $clean=Api Delete '/system/log/clean?days=3650' $null $token; Check '审计日�
 foreach($matrix in $matrixDocs){ if($matrix.Id){Api Delete ("/oa/"+($(if($matrix.Type -eq '1'){'incomingDoc'}else{'outgoingDoc'}))+"/"+$matrix.Id) $null $token|Out-Null} }
 foreach($u in $createdUsers){ if($u){Api Delete ("/system/user/"+$u.userId) $null $token|Out-Null} }
 if($unauthDocId){Api Delete ("/oa/incomingDoc/"+$unauthDocId) $null $token|Out-Null}
+if($flowDocId){Api Delete ("/oa/outgoingDoc/"+$flowDocId) $null $token|Out-Null}
+if($deniedFlowId){Api Delete ("/oa/docFlow/"+$deniedFlowId) $null $token|Out-Null}
 Api Delete ("/oa/incomingDoc/"+$inId) $null $token|Out-Null; Api Delete ("/oa/outgoingDoc/"+$outId) $null $token|Out-Null
 $results|Format-Table -AutoSize; $pass=@($results|Where-Object Result -eq 'PASS').Count; $fail=@($results|Where-Object Result -eq 'FAIL').Count; "SUMMARY PASS=$pass FAIL=$fail"
