@@ -1,6 +1,10 @@
 app:
   upload:
     path: ${UPLOAD_PATH:./oa-upload}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:18081}
+  security:
+    public-api-docs: ${PUBLIC_API_DOCS:false}
 
 server:
   port: 8080
@@ -15,7 +19,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/oa_system?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
     username: root
-    password: root123
+    password: ${DB_PASSWORD}
     druid:
       initial-size: 5
       min-idle: 5
@@ -37,7 +41,7 @@ mybatis-plus:
   type-aliases-package: com.oa.**.domain
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
   global-config:
     db-config:
       id-type: auto
@@ -46,7 +50,7 @@ mybatis-plus:
       logic-not-delete-value: 0
 
 jwt:
-  secret: OA-SYSTEM-JWT-SECRET-KEY-2024-DO-NOT-USE-IN-PRODUCTION
+  secret: ${JWT_SECRET}
   expiration: 86400000
   header: Authorization
   prefix: "Bearer "

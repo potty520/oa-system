@@ -8,7 +8,7 @@
       </el-form-item>
       <el-form-item><el-button type="primary" icon="el-icon-search" @click="handleQuery">搜索</el-button><el-button icon="el-icon-refresh" @click="resetQuery">重置</el-button></el-form-item>
     </el-form>
-    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button></el-col></el-row>
+    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button v-if="hasPermi('oa:outgoingDoc:add')" type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button></el-col></el-row>
     <el-table v-loading="loading" :data="tableData" border>
       <el-table-column label="发文标题" prop="docTitle" min-width="160" show-overflow-tooltip />
       <el-table-column label="发文编号" prop="docNumber" width="140" />
@@ -20,11 +20,11 @@
       <el-table-column label="签发人" prop="signUserName" width="100" align="center" />
       <el-table-column label="操作" min-width="220" align="center">
         <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">查看</el-button><el-button size="mini" type="text" icon="el-icon-sort" @click="openAction(scope.row)">流程</el-button>
-          <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
-          <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
-          <el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-s-promotion" @click="handleSubmit(scope.row)">提交审核</el-button>
-          <el-button v-if="scope.row.status === '1'" size="mini" type="text" icon="el-icon-edit-outline" @click="handleSign(scope.row)">签发</el-button>
+          <el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">查看</el-button><el-button v-if="hasPermi('oa:doc:action')" size="mini" type="text" icon="el-icon-sort" @click="openAction(scope.row)">流程</el-button>
+          <el-button v-if="hasPermi('oa:outgoingDoc:edit') && scope.row.status === '0'" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
+          <el-button v-if="hasPermi('oa:outgoingDoc:remove') && scope.row.status === '0'" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
+          <el-button v-if="hasPermi('oa:outgoingDoc:edit') && scope.row.status === '0'" size="mini" type="text" icon="el-icon-s-promotion" @click="handleSubmit(scope.row)">提交审核</el-button>
+          <el-button v-if="hasPermi('oa:outgoingDoc:edit') && scope.row.status === '1'" size="mini" type="text" icon="el-icon-edit-outline" @click="handleSign(scope.row)">签发</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -93,6 +93,7 @@ export default {
   },
   created() { this.getDocTypes(); this.getList() },
   methods: {
+    hasPermi(permission) { const permissions = this.$store.getters.permissions || []; const user = this.$store.getters.userInfo || {}; return user.userId === 1 || permissions.includes('*:*:*') || permissions.includes(permission) },
     levelLabel(value) { return { '1': '普通', '2': '重要', '3': '紧急' }[value] || '普通' },
     secretLabel(value) { return { '1': '普通', '2': '秘密', '3': '机密', '4': '绝密' }[value] || '普通' },
     statusLabel(value) { return { '0': '草稿', '1': '审核中', '2': '已签发', '3': '已归档' }[value] || '未知' },

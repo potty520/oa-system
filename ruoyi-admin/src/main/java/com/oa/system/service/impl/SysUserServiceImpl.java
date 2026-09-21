@@ -3,6 +3,7 @@ package com.oa.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oa.security.model.LoginUser;
+import com.oa.security.service.LoginUserCache;
 import com.oa.security.utils.SecurityUtils;
 import com.oa.system.domain.SysDept;
 import com.oa.system.domain.SysRole;
@@ -32,6 +33,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Autowired
     private SysRoleMapper roleMapper;
+
+    @Autowired
+    private LoginUserCache loginUserCache;
 
     @Override
     public LoginUser selectUserByUsername(String username) {
@@ -90,6 +94,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         int rows = baseMapper.insert(user);
         saveUserRoles(user.getUserId(), user.getRoleIds());
         saveUserPosts(user.getUserId(), user.getPostIds());
+        loginUserCache.evict(user.getUsername());
         return rows;
     }
 
@@ -110,6 +115,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         userMapper.deleteUserPostByUserId(user.getUserId());
         saveUserRoles(user.getUserId(), user.getRoleIds());
         saveUserPosts(user.getUserId(), user.getPostIds());
+        loginUserCache.evict(existing.getUsername());
         return rows;
     }
 
@@ -118,19 +124,28 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     public int deleteUserByIds(Long[] userIds) {
         int count = 0;
         for (Long userId : userIds) {
+            SysUser existing = baseMapper.selectById(userId);
             userMapper.deleteUserRoleByUserId(userId);
             userMapper.deleteUserPostByUserId(userId);
             count += baseMapper.deleteById(userId);
+            if (existing != null) {
+                loginUserCache.evict(existing.getUsername());
+            }
         }
         return count;
     }
 
     @Override
     public int changeStatus(SysUser user) {
+        SysUser existing = baseMapper.selectById(user.getUserId());
         SysUser update = new SysUser();
         update.setUserId(user.getUserId());
         update.setStatus(user.getStatus());
-        return baseMapper.updateById(update);
+        int rows = baseMapper.updateById(update);
+        if (existing != null) {
+            loginUserCache.evict(existing.getUsername());
+        }
+        return rows;
     }
 
     @Override
@@ -138,10 +153,15 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (StringUtils.isBlank(user.getPassword())) {
             return 0;
         }
+        SysUser existing = baseMapper.selectById(user.getUserId());
         SysUser update = new SysUser();
         update.setUserId(user.getUserId());
         update.setPassword(SecurityUtils.encryptPassword(user.getPassword()));
-        return baseMapper.updateById(update);
+        int rows = baseMapper.updateById(update);
+        if (existing != null) {
+            loginUserCache.evict(existing.getUsername());
+        }
+        return rows;
     }
 
     private void saveUserRoles(Long userId, List<Long> roleIds) {

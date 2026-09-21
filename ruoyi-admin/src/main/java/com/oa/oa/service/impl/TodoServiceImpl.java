@@ -4,12 +4,14 @@ import com.oa.oa.domain.OaLeave;
 import com.oa.oa.domain.OaIncomingDoc;
 import com.oa.oa.domain.OaOutgoingDoc;
 import com.oa.oa.domain.OaReimbursement;
+import com.oa.oa.domain.DocActionRequest;
 import com.oa.oa.domain.OaTodo;
 import com.oa.oa.mapper.OaIncomingDocMapper;
 import com.oa.oa.mapper.OaLeaveMapper;
 import com.oa.oa.mapper.OaOutgoingDocMapper;
 import com.oa.oa.mapper.OaReimbursementMapper;
 import com.oa.oa.mapper.OaTodoMapper;
+import com.oa.oa.service.IOaDocProcessService;
 import com.oa.oa.service.ITodoService;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +36,9 @@ public class TodoServiceImpl implements ITodoService {
 
     @Autowired
     private OaOutgoingDocMapper outgoingDocMapper;
+
+    @Autowired
+    private IOaDocProcessService docProcessService;
 
     @Override
     public List<OaTodo> selectTodoList(Long userId, String userName, String todoTitle, String status) {
@@ -63,15 +68,19 @@ public class TodoServiceImpl implements ITodoService {
         } else if ("incoming_doc".equals(todoType)) {
             OaIncomingDoc doc = incomingDocMapper.selectById(relatedId);
             if (doc != null) {
-                doc.setStatus("0".equals(doc.getStatus()) ? "1" : "2");
-                incomingDocMapper.updateById(doc);
+                executeDocAction("1", relatedId, "0".equals(doc.getStatus()) ? "receive" : "complete");
             }
         } else if ("outgoing_doc".equals(todoType)) {
             OaOutgoingDoc doc = outgoingDocMapper.selectById(relatedId);
             if (doc != null) {
-                doc.setStatus("0".equals(doc.getStatus()) ? "1" : "2");
-                outgoingDocMapper.updateById(doc);
+                executeDocAction("2", relatedId, "0".equals(doc.getStatus()) ? "submit" : "sign");
             }
         }
+    }
+
+    private void executeDocAction(String docType, Long docId, String action) {
+        DocActionRequest request = new DocActionRequest();
+        request.setAction(action);
+        docProcessService.execute(docType, docId, request);
     }
 }

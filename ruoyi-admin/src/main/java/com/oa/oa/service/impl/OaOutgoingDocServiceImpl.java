@@ -7,9 +7,11 @@ import com.oa.oa.mapper.OaOutgoingDocMapper;
 import com.oa.oa.service.IOaOutgoingDocService;
 import com.oa.security.utils.SecurityUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class OaOutgoingDocServiceImpl extends ServiceImpl<OaOutgoingDocMapper, OaOutgoingDoc> implements IOaOutgoingDocService {
@@ -65,21 +67,27 @@ public class OaOutgoingDocServiceImpl extends ServiceImpl<OaOutgoingDocMapper, O
     @Override
     public int submitOaOutgoingDoc(Long docId) {
         OaOutgoingDoc doc = baseMapper.selectById(docId);
-        if (doc != null && "0".equals(doc.getStatus())) {
-            doc.setStatus("1");
-            return baseMapper.updateById(doc);
-        }
-        return 0;
+        requireSigner(doc);
+        return baseMapper.updateStatusIfCurrent(docId, "0", "1", SecurityUtils.getUsername());
     }
     @Override
     public int signOaOutgoingDoc(Long docId) {
         OaOutgoingDoc doc = baseMapper.selectById(docId);
-        if (doc != null && "1".equals(doc.getStatus())) {
-            doc.setStatus("2");
-            doc.setSignUserId(SecurityUtils.getUserId());
-            doc.setSignUserName(SecurityUtils.getUsername());
-            return baseMapper.updateById(doc);
+        requireSigner(doc);
+        return baseMapper.signIfCurrent(docId, "1", "2", SecurityUtils.getUserId(), SecurityUtils.getUsername());
+    }
+
+    private void requireSigner(OaOutgoingDoc doc) {
+        if (doc == null || SecurityUtils.isAdmin(SecurityUtils.getUserId())) {
+            return;
         }
-        return 0;
+        Long userId = SecurityUtils.getUserId();
+        String username = SecurityUtils.getUsername();
+        boolean assigned = doc.getSignUserId() == null
+                ? Objects.equals(doc.getCreateBy(), username)
+                : Objects.equals(doc.getSignUserId(), userId);
+        if (!assigned) {
+            throw new AccessDeniedException("当前用户无权处理该发文");
+        }
     }
 }

@@ -7,6 +7,7 @@ import com.oa.oa.domain.OaIncomingDoc;
 import com.oa.oa.service.IOaIncomingDocService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class OaIncomingDocController extends BaseController {
     @Autowired
     private IOaIncomingDocService incomingDocService;
 
+    @PreAuthorize("@ss.hasPermi('oa:incomingDoc:list')")
     @GetMapping("/list")
     public TableDataInfo list(OaIncomingDoc doc) {
         startPage();
@@ -25,11 +27,13 @@ public class OaIncomingDocController extends BaseController {
         return getDataTable(list);
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:incomingDoc:query')")
     @GetMapping("/{docId}")
     public AjaxResult getInfo(@PathVariable Long docId) {
         return AjaxResult.success(incomingDocService.selectOaIncomingDocById(docId));
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:incomingDoc:add')")
     @PostMapping
     public AjaxResult add(@RequestBody OaIncomingDoc doc) {
         if (StringUtils.isBlank(doc.getDocTitle()) || StringUtils.isBlank(doc.getDocNumber())) {
@@ -41,6 +45,7 @@ public class OaIncomingDocController extends BaseController {
         return toAjax(incomingDocService.insertOaIncomingDoc(doc));
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:incomingDoc:edit')")
     @PutMapping
     public AjaxResult edit(@RequestBody OaIncomingDoc doc) {
         if (doc.getDocId() == null) {
@@ -55,16 +60,19 @@ public class OaIncomingDocController extends BaseController {
         return toAjax(incomingDocService.updateOaIncomingDoc(doc));
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:incomingDoc:remove')")
     @DeleteMapping("/{docIds}")
     public AjaxResult remove(@PathVariable Long[] docIds) {
         return toAjax(incomingDocService.deleteOaIncomingDocByIds(docIds));
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:incomingDoc:edit')")
     @PutMapping("/sign/{docId}")
     public AjaxResult sign(@PathVariable Long docId) {
         return toAjax(incomingDocService.signOaIncomingDoc(docId));
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:incomingDoc:edit')")
     @PutMapping("/complete/{docId}")
     public AjaxResult complete(@PathVariable Long docId) {
         return toAjax(incomingDocService.completeOaIncomingDoc(docId));

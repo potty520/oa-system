@@ -1,6 +1,8 @@
 package com.oa.security.filter;
 
 import com.oa.security.model.LoginUser;
+import com.oa.security.service.JwtTokenBlacklist;
+import com.oa.security.service.LoginUserCache;
 import com.oa.security.utils.JwtUtils;
 import com.oa.system.service.ISysUserService;
 import io.jsonwebtoken.Claims;
@@ -29,17 +31,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Autowired
     private ISysUserService userService;
 
+    @Autowired
+    private LoginUserCache loginUserCache;
+
+    @Autowired
+    private JwtTokenBlacklist jwtTokenBlacklist;
+
     private static final String TOKEN_PREFIX = "Bearer ";
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = resolveToken(request);
-        if (StringUtils.hasText(token) && jwtUtils.validateToken(token)) {
+        if (StringUtils.hasText(token) && !jwtTokenBlacklist.isRevoked(token) && jwtUtils.validateToken(token)) {
             Claims claims = jwtUtils.parseToken(token);
             String username = claims.getSubject();
             if (username != null) {
-                LoginUser loginUser = userService.selectUserByUsername(username);
+                LoginUser loginUser = loginUserCache.get(username, () -> userService.selectUserByUsername(username));
                 if (loginUser != null && loginUser.isEnabled()) {
                     List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                     if (loginUser.getPermissions() != null) {

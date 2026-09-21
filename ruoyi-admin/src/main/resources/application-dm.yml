@@ -4,7 +4,7 @@ spring:
     driver-class-name: dm.jdbc.driver.DmDriver
     url: jdbc:dm://${DB_HOST:localhost}:${DB_PORT:5236}/${DB_NAME:OA_SYSTEM}
     username: ${DB_USERNAME:SYSDBA}
-    password: ${DB_PASSWORD:SYSDBA}
+    password: ${DB_PASSWORD}
   sql:
     init:
       mode: ${DB_INIT_MODE:always}

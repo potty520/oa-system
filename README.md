@@ -133,15 +133,30 @@ mysql -uroot -p oa_system < E:\api\oa-system\sql\oa_init.sql
 
 生产环境可通过 `DB_PASSWORD` 覆盖数据库密码。
 
+## 安全配置（生产必读）
+
+生产环境必须配置以下环境变量，仓库中不再保留 JWT 或数据库弱默认密码：
+
+- **JWT_SECRET**：至少 32 字节的随机字符串；缺失或过短时应用拒绝启动。
+- **DB_PASSWORD**：数据库密码。
+- **CORS_ALLOWED_ORIGINS**：允许跨域的前端域名，多个域名用英文逗号分隔；默认仅允许本地 `http://localhost:18081`。
+- **PUBLIC_API_DOCS**：是否匿名开放 Swagger，默认 `false`，生产环境保持关闭。
+- **注册接口**：`/register` 已要求 `system:user:add` 权限，不再匿名开放。
+- **登录保护**：单用户连续失败 5 次锁定 15 分钟，错误提示统一为“用户名或密码错误”。
+- **文件安全**：上传目录不再通过 `/profile/**` 静态暴露，附件只能通过鉴权下载接口访问，并限制允许的文件扩展名。
+- **默认账号**：`admin/admin123`、`zhangsan/admin123`、`lisi/admin123` 仅用于演示，上线前请修改密码或禁用。
+
 ## 启动后端
 
 ```powershell
 cd E:\api\oa-system
+$env:JWT_SECRET = "replace-with-at-least-32-random-bytes"
+$env:DB_PASSWORD = "your-database-password"
 mvn clean package
 java -jar .\ruoyi-admin\target\ruoyi-admin-1.0.0.jar
 ```
 
-本地开发默认地址：`http://localhost:18080`
+本地开发默认地址：`http://localhost:8080`
 
 ## 启动前端
 

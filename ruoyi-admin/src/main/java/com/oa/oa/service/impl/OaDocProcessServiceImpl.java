@@ -6,12 +6,15 @@ import com.oa.oa.mapper.*;
 import com.oa.oa.service.IOaDocProcessService;
 import com.oa.security.model.LoginUser;
 import com.oa.security.utils.SecurityUtils;
+import com.oa.system.mapper.SysUserMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class OaDocProcessServiceImpl implements IOaDocProcessService {
@@ -33,6 +36,12 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
     private OaDocArchiveMapper archiveMapper;
     @Autowired
     private OaDocDelegateMapper delegateMapper;
+    @Autowired
+    private OaDocFlowMapper flowMapper;
+    @Autowired
+    private OaDocFlowStepMapper flowStepMapper;
+    @Autowired
+    private SysUserMapper userMapper;
 
     @Override
     public Map<String, Object> getTimeline(String docType, Long docId) {
@@ -69,25 +78,29 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         if (currentStatus == null) {
             throw new IllegalArgumentException("公文不存在");
         }
+        requireActionPermission(docType, docId, action, request, user);
 
         if ("receive".equals(action)) {
             requireStatus(docType, DOC_INCOMING, currentStatus, "0", "只有待签收收文可以签收");
-            setStatus(docType, docId, "1");
+            setStatus(docType, docId, currentStatus, "1");
             return;
         }
         if ("submit".equals(action)) {
             requireStatus(docType, DOC_OUTGOING, currentStatus, "0", "只有草稿发文可以提交");
-            setStatus(docType, docId, "1");
+            setStatus(docType, docId, currentStatus, "1");
             return;
         }
         if ("complete".equals(action)) {
             requireStatus(docType, DOC_INCOMING, currentStatus, "1", "只有办理中的收文可以办结");
-            setStatus(docType, docId, "2");
+            setStatus(docType, docId, currentStatus, "2");
             return;
         }
         if ("sign".equals(action)) {
             requireStatus(docType, DOC_OUTGOING, currentStatus, "1", "只有审核中的发文可以签发");
-            setStatus(docType, docId, "2");
+            int rows = outgoingDocMapper.signIfCurrent(docId, currentStatus, "2", user.getUserId(), user.getUsername());
+            if (rows != 1) {
+                throw new IllegalStateException("公文状态已变化，请刷新后重试");
+            }
             return;
         }
 
@@ -96,10 +109,8 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         if (Arrays.asList("approve", "countersign", "add_sign", "cancel_sign", "return", "withdraw", "transfer", "delegate", "agent", "circulate", "urge", "archive").contains(action)) {
             if ("approve".equals(action)) {
                 addApproval(docType, docId, "1", request, user);
-                if (DOC_OUTGOING.equals(docType) && "1".equals(currentStatus)) {
-                    setStatus(docType, docId, "2");
-                } else if (DOC_INCOMING.equals(docType) && "1".equals(currentStatus)) {
-                    setStatus(docType, docId, "2");
+                if (DOC_INCOMING.equals(docType) && "1".equals(currentStatus)) {
+                    setStatus(docType, docId, currentStatus, "2");
                 }
             } else if ("countersign".equals(action)) {
                 if (request.getTargetUserIds() != null && !request.getTargetUserIds().isEmpty()) {
@@ -142,10 +153,10 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 delegateMapper.insert(delegate);
             } else if ("return".equals(action)) {
                 addApproval(docType, docId, "3", request, user);
-                setStatus(docType, docId, DOC_OUTGOING.equals(docType) ? "0" : "1");
+                setStatus(docType, docId, currentStatus, DOC_OUTGOING.equals(docType) ? "0" : "1");
             } else if ("withdraw".equals(action)) {
                 addApproval(docType, docId, "4", request, user);
-                setStatus(docType, docId, "0");
+                setStatus(docType, docId, currentStatus, "0");
             } else if ("transfer".equals(action)) {
                 if (request.getTargetUserId() == null) {
                     throw new IllegalArgumentException("转办需要选择目标用户");
@@ -185,7 +196,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 archive.setArchiveUserName(user.getUsername());
                 archive.setArchiveLocation(request.getArchiveLocation());
                 archiveMapper.insert(archive);
-                setStatus(docType, docId, "3");
+                setStatus(docType, docId, currentStatus, "3");
             }
             return;
         }
@@ -199,9 +210,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(OaDocCirculation::getUserId, user.getUserId())
                 .orderByAsc(OaDocCirculation::getReadStatus)
                 .orderByDesc(OaDocCirculation::getCreateTime));
-        for (OaDocCirculation item : list) {
-            enrichCirculation(item);
-        }
+        enrichCirculations(list);
         return list;
     }
 
@@ -241,6 +250,114 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(docType != null && !docType.isEmpty(), OaDocReminder::getDocType, docType)
                 .eq(docId != null, OaDocReminder::getDocId, docId)
                 .orderByDesc(OaDocReminder::getReminderTime));
+    }
+
+    private void requireActionPermission(String docType, Long docId, String action,
+                                         DocActionRequest request, LoginUser user) {
+        if (SecurityUtils.isAdmin(user.getUserId())) {
+            return;
+        }
+        if ("submit".equals(action) && isCreator(docType, docId, user.getUsername())) {
+            return;
+        }
+        if ("receive".equals(action)
+                && (isCreator(docType, docId, user.getUsername()) || isAssignedHandler(docType, docId, user.getUserId()))) {
+            return;
+        }
+        if ("sign".equals(action)
+                && (isAssignedSigner(docType, docId, user.getUserId()) || hasFlowStepRole(docType, request, user.getUserId()))) {
+            return;
+        }
+        if ("approve".equals(action)
+                && (isAssignedHandler(docType, docId, user.getUserId())
+                || isPendingApprover(docType, docId, user.getUserId())
+                || hasFlowStepRole(docType, request, user.getUserId()))) {
+            return;
+        }
+        if (Arrays.asList("complete", "countersign", "add_sign", "cancel_sign", "return", "transfer",
+                "delegate", "agent", "circulate", "urge", "archive").contains(action)
+                && isDocumentOwnerOrActiveDelegate(docType, docId, user)) {
+            return;
+        }
+        if (Arrays.asList("countersign", "add_sign", "cancel_sign", "return").contains(action)
+                && (isPendingApprover(docType, docId, user.getUserId())
+                || hasFlowStepRole(docType, request, user.getUserId()))) {
+            return;
+        }
+        throw new AccessDeniedException("当前用户无权处理该公文");
+    }
+
+    private boolean isCreator(String docType, Long docId, String username) {
+        if (StringUtils.isBlank(username)) {
+            return false;
+        }
+        if (DOC_INCOMING.equals(docType)) {
+            OaIncomingDoc doc = incomingDocMapper.selectById(docId);
+            return doc != null && username.equals(doc.getCreateBy());
+        }
+        OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
+        return doc != null && username.equals(doc.getCreateBy());
+    }
+
+    private boolean isAssignedHandler(String docType, Long docId, Long userId) {
+        if (!DOC_INCOMING.equals(docType) || userId == null) {
+            return false;
+        }
+        OaIncomingDoc doc = incomingDocMapper.selectById(docId);
+        return doc != null && Objects.equals(doc.getHandlerId(), userId);
+    }
+
+    private boolean isAssignedSigner(String docType, Long docId, Long userId) {
+        if (!DOC_OUTGOING.equals(docType) || userId == null) {
+            return false;
+        }
+        OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
+        if (doc == null) {
+            return false;
+        }
+        return Objects.equals(doc.getSignUserId(), userId)
+                || (doc.getSignUserId() == null && StringUtils.isNotBlank(doc.getCreateBy())
+                && doc.getCreateBy().equals(SecurityUtils.getUsername()));
+    }
+
+    private boolean isPendingApprover(String docType, Long docId, Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        return approvalMapper.selectCount(new LambdaQueryWrapper<OaDocApproval>()
+                .eq(OaDocApproval::getDocType, docType)
+                .eq(OaDocApproval::getDocId, docId)
+                .eq(OaDocApproval::getUserId, userId)
+                .in(OaDocApproval::getApproveResult, Arrays.asList("5", "7"))) > 0;
+    }
+
+    private boolean isDocumentOwnerOrActiveDelegate(String docType, Long docId, LoginUser user) {
+        if (isCreator(docType, docId, user.getUsername())
+                || isAssignedHandler(docType, docId, user.getUserId())
+                || isAssignedSigner(docType, docId, user.getUserId())) {
+            return true;
+        }
+        return delegateMapper.selectCount(new LambdaQueryWrapper<OaDocDelegate>()
+                .eq(OaDocDelegate::getDocType, docType)
+                .eq(OaDocDelegate::getDocId, docId)
+                .eq(OaDocDelegate::getToUserId, user.getUserId())
+                .eq(OaDocDelegate::getStatus, "0")) > 0;
+    }
+
+    private boolean hasFlowStepRole(String docType, DocActionRequest request, Long userId) {
+        if (request == null || request.getFlowId() == null || request.getStepId() == null || userId == null) {
+            return false;
+        }
+        OaDocFlow flow = flowMapper.selectById(request.getFlowId());
+        if (flow == null || !"0".equals(flow.getStatus()) || !docType.equals(flow.getFlowType())) {
+            return false;
+        }
+        OaDocFlowStep step = flowStepMapper.selectById(request.getStepId());
+        if (step == null || !Objects.equals(step.getFlowId(), flow.getFlowId()) || step.getRoleId() == null) {
+            return false;
+        }
+        List<Long> roleIds = userMapper.selectRoleIdsByUserId(userId);
+        return roleIds != null && roleIds.contains(step.getRoleId());
     }
 
     private void requireTargetUsers(DocActionRequest request, String message) {
@@ -303,15 +420,16 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         return doc == null ? null : doc.getStatus();
     }
 
-    private void setStatus(String docType, Long docId, String status) {
+    private void setStatus(String docType, Long docId, String expectedStatus, String status) {
+        String username = SecurityUtils.getUsername();
+        int rows;
         if (DOC_INCOMING.equals(docType)) {
-            OaIncomingDoc doc = incomingDocMapper.selectById(docId);
-            doc.setStatus(status);
-            incomingDocMapper.updateById(doc);
+            rows = incomingDocMapper.updateStatusIfCurrent(docId, expectedStatus, status, username);
         } else {
-            OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
-            doc.setStatus(status);
-            outgoingDocMapper.updateById(doc);
+            rows = outgoingDocMapper.updateStatusIfCurrent(docId, expectedStatus, status, username);
+        }
+        if (rows != 1) {
+            throw new IllegalStateException("公文状态已变化，请刷新后重试");
         }
     }
 
@@ -339,20 +457,44 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         circulationMapper.insert(circulation);
     }
 
-    private void enrichCirculation(OaDocCirculation item) {
-        if (DOC_INCOMING.equals(item.getDocType())) {
-            OaIncomingDoc doc = incomingDocMapper.selectById(item.getDocId());
-            if (doc != null) {
-                item.setDocTitle(doc.getDocTitle());
-                item.setDocNumber(doc.getDocNumber());
-                item.setStatus(doc.getStatus());
-            }
-        } else {
-            OaOutgoingDoc doc = outgoingDocMapper.selectById(item.getDocId());
-            if (doc != null) {
-                item.setDocTitle(doc.getDocTitle());
-                item.setDocNumber(doc.getDocNumber());
-                item.setStatus(doc.getStatus());
+    private void enrichCirculations(List<OaDocCirculation> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+        List<Long> incomingIds = items.stream()
+                .filter(item -> DOC_INCOMING.equals(item.getDocType()))
+                .map(OaDocCirculation::getDocId)
+                .distinct()
+                .collect(Collectors.toList());
+        List<Long> outgoingIds = items.stream()
+                .filter(item -> DOC_OUTGOING.equals(item.getDocType()))
+                .map(OaDocCirculation::getDocId)
+                .distinct()
+                .collect(Collectors.toList());
+        Map<Long, OaIncomingDoc> incomingDocs = incomingIds.isEmpty()
+                ? Collections.emptyMap()
+                : incomingDocMapper.selectBatchIds(incomingIds).stream()
+                .collect(Collectors.toMap(OaIncomingDoc::getDocId, doc -> doc));
+        Map<Long, OaOutgoingDoc> outgoingDocs = outgoingIds.isEmpty()
+                ? Collections.emptyMap()
+                : outgoingDocMapper.selectBatchIds(outgoingIds).stream()
+                .collect(Collectors.toMap(OaOutgoingDoc::getDocId, doc -> doc));
+
+        for (OaDocCirculation item : items) {
+            if (DOC_INCOMING.equals(item.getDocType())) {
+                OaIncomingDoc doc = incomingDocs.get(item.getDocId());
+                if (doc != null) {
+                    item.setDocTitle(doc.getDocTitle());
+                    item.setDocNumber(doc.getDocNumber());
+                    item.setStatus(doc.getStatus());
+                }
+            } else {
+                OaOutgoingDoc doc = outgoingDocs.get(item.getDocId());
+                if (doc != null) {
+                    item.setDocTitle(doc.getDocTitle());
+                    item.setDocNumber(doc.getDocNumber());
+                    item.setStatus(doc.getStatus());
+                }
             }
         }
     }

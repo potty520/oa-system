@@ -5,6 +5,9 @@ $results=New-Object System.Collections.Generic.List[object]
 function Check($name,$condition,$detail=''){ $state=$(if($condition){'PASS'}else{'FAIL'}); Write-Host "$state $name $detail"; $results.Add([pscustomobject]@{Test=$name;Result=$state;Detail=$detail})|Out-Null; if(-not $condition){throw "FAILED: $name $detail"} }
 function Api($method,$path,$body,$token){$headers=@{};if($token){$headers.Authorization='Bearer '+$token};$p=@{Uri=$BaseUrl+$path;Method=$method;Headers=$headers;TimeoutSec=15};if($null -ne $body){$p.ContentType='application/json';$p.Body=$body|ConvertTo-Json -Depth 12 -Compress};try{Invoke-RestMethod @p}catch{$status=[int]$_.Exception.Response.StatusCode; [pscustomobject]@{code=$status;msg=$_.Exception.Message}}}
 $admin=Api Post '/login' @{username='admin';password='admin123'} $null; $token=$admin.data.token
+$register=Api Post '/register' @{userName="anonymous$suffix";nickName='匿名';password='Test123456'} $null; Check '匿名注册拦截' ($register.code -eq 403) $register.msg
+$probeUser="missing-user-$suffix"; $probeCode=0; foreach($attempt in 1..5){$probe=Api Post '/login' @{username=$probeUser;password='wrong-password'} $null; $probeCode=$probe.code}; Check '登录失败计数' ($probeCode -eq 400) "code=$probeCode"
+$locked=Api Post '/login' @{username=$probeUser;password='wrong-password'} $null; Check '登录失败锁定' ($locked.code -eq 429) $locked.msg
 # Duplicate and empty data validation
 $dupUser=Api Post '/system/user' @{userName='admin';nickName='Duplicate';password='Test123456'} $token; Check '重复账号拦截' ($dupUser.code  -eq  409) $dupUser.msg
 $emptyUser=Api Post '/system/user' @{userName='';password=''} $token; Check '空用户数据拦截' ($emptyUser.code  -eq  400) $emptyUser.msg
@@ -37,6 +40,7 @@ Api Post ("/oa/doc/action/2/$outId") @{action='submit'} $token|Out-Null
 $or=Api Post ("/oa/doc/action/2/$outId") @{action='return'} $token; Check '发文退回' ($or.code -eq  200)
 Api Post ("/oa/doc/action/2/$outId") @{action='submit'} $token|Out-Null
 Api Post ("/oa/doc/action/2/$outId") @{action='approve';opinion='审核通过'} $token|Out-Null
+$outSign=Api Post ("/oa/doc/action/2/$outId") @{action='sign'} $token; Check '发文签发' ($outSign.code -eq 200) $outSign.msg
 Api Post ("/oa/doc/action/2/$outId") @{action='archive';archiveCode="P2-ARCH-OUT-$suffix";archiveLocation='档案室'} $token|Out-Null
 $otl=Api Get ("/oa/doc/timeline/2/$outId") $null $token; Check '发文全流程完成' (@($otl.data.approvals).Count  -ge  3 -and @($otl.data.archives).Count  -eq  1) "approvals=$(@($otl.data.approvals).Count)"
 # Duplicate document number
@@ -49,6 +53,11 @@ $usersToCreate=@(
  @{userName="scope101$suffix";nickName='范围101';password='Test123456';deptId=101;roleIds=@(2)}
 ); $createdUsers=@(); foreach($u in $usersToCreate){ $r=Api Post '/system/user' $u $token; $ul=Api Get ("/system/user/list?pageNum=1&pageSize=20&userName="+$u.userName) $null $token; $createdUsers+=($ul.rows|Select-Object -First 1) }
 $commonLogin=Api Post '/login' @{username='zhangsan';password='admin123'} $null; $zh=$commonLogin.data.token
+$unauthorizedAdd=Api Post '/oa/incomingDoc' @{docNumber="DENIED-IN-$suffix";docTitle='越权收文';sourceUnit='测试';receiveDate='2026-09-20';docLevel='1';docSecret='1';status='0'} $zh; Check '普通用户收文新增权限拦截' ($unauthorizedAdd.code -eq 403) $unauthorizedAdd.msg
+$unauthorizedDelete=Api Delete ("/oa/incomingDoc/"+$inId) $null $zh; Check '普通用户收文删除权限拦截' ($unauthorizedDelete.code -eq 403) $unauthorizedDelete.msg
+$unauthNum="DENIED-ACTION-$suffix"; Api Post '/oa/incomingDoc' @{docNumber=$unauthNum;docTitle='越权审批测试';sourceUnit='测试';receiveDate='2026-09-20';docLevel='1';docSecret='1';docTypeId=1000;status='0'} $token|Out-Null
+$unauthList=Api Get ("/oa/incomingDoc/list?pageNum=1&pageSize=20&docNumber=$unauthNum") $null $token; $unauthDocId=($unauthList.rows|Select-Object -First 1).docId
+$unauthorizedAction=Api Post ("/oa/doc/action/1/$unauthDocId") @{action='receive';opinion='越权签收'} $zh; Check '普通用户公文处理人校验' ($unauthorizedAction.code -eq 403) $unauthorizedAction.msg
 # self scope (5)
 Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();status='0'} $token|Out-Null
 $selfScope=Api Get '/system/user/contacts' $null $zh; Check '仅本人数据范围' (@($selfScope.data).Count  -eq  1) "count=$(@($selfScope.data).Count)"
@@ -127,6 +136,11 @@ $tempFile=Join-Path (Resolve-Path 'ruoyi-admin\target').Path ("phase2-upload-$su
 $fileName=[System.IO.Path]::GetFileName($tempFile)
 $upload=Invoke-RestMethod -Uri ($BaseUrl+'/oa/document/upload') -Method Post -Headers @{Authorization='Bearer '+$token} -Form @{file=Get-Item $tempFile;documentType='phase2'} -TimeoutSec 20
 Check '文件上传成功' ($upload.code -eq 200) $upload.msg
+$blockedFile=Join-Path (Resolve-Path 'ruoyi-admin\target').Path ("phase2-blocked-$suffix.html")
+[System.IO.File]::WriteAllText($blockedFile,'<script>alert(1)</script>')
+$blockedUpload=Invoke-RestMethod -Uri ($BaseUrl+'/oa/document/upload') -Method Post -Headers @{Authorization='Bearer '+$token} -Form @{file=Get-Item $blockedFile;documentType='phase2'} -TimeoutSec 20
+Check '危险文件类型拦截' ($blockedUpload.code -eq 400) $blockedUpload.msg
+[System.IO.File]::Delete($blockedFile)
 $adminFiles=Api Get ("/oa/document/list?pageNum=1&pageSize=100&documentName=$fileName") $null $token
 $fileDoc=$adminFiles.rows|Select-Object -First 1
 Check '管理员可见上传文件' ($null -ne $fileDoc) "count=$($adminFiles.total)"
@@ -158,5 +172,6 @@ $clean=Api Delete '/system/log/clean?days=3650' $null $token; Check '审计日�
 # cleanup documents/users
 foreach($matrix in $matrixDocs){ if($matrix.Id){Api Delete ("/oa/"+($(if($matrix.Type -eq '1'){'incomingDoc'}else{'outgoingDoc'}))+"/"+$matrix.Id) $null $token|Out-Null} }
 foreach($u in $createdUsers){ if($u){Api Delete ("/system/user/"+$u.userId) $null $token|Out-Null} }
+if($unauthDocId){Api Delete ("/oa/incomingDoc/"+$unauthDocId) $null $token|Out-Null}
 Api Delete ("/oa/incomingDoc/"+$inId) $null $token|Out-Null; Api Delete ("/oa/outgoingDoc/"+$outId) $null $token|Out-Null
 $results|Format-Table -AutoSize; $pass=@($results|Where-Object Result -eq 'PASS').Count; $fail=@($results|Where-Object Result -eq 'FAIL').Count; "SUMMARY PASS=$pass FAIL=$fail"

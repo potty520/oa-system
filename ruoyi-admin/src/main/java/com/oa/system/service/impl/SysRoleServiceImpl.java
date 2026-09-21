@@ -2,6 +2,7 @@ package com.oa.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.oa.security.service.LoginUserCache;
 import com.oa.system.domain.SysRole;
 import com.oa.system.mapper.SysRoleMapper;
 import com.oa.system.service.ISysRoleService;
@@ -13,6 +14,9 @@ import java.util.List;
 
 @Service
 public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> implements ISysRoleService {
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private LoginUserCache loginUserCache;
 
     @Override
     public List<SysRole> selectRoleList(SysRole role) {
@@ -40,6 +44,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     public int saveRole(SysRole role) {
         int rows = baseMapper.insert(role);
         saveDepts(role.getRoleId(), role.getDeptIds());
+        loginUserCache.evictAll();
         return rows;
     }
 
@@ -49,7 +54,26 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         int rows = baseMapper.updateById(role);
         baseMapper.deleteRoleDeptByRoleId(role.getRoleId());
         saveDepts(role.getRoleId(), role.getDeptIds());
+        loginUserCache.evictAll();
         return rows;
+    }
+
+    @Override
+    public boolean updateById(SysRole role) {
+        boolean updated = super.updateById(role);
+        if (updated) {
+            loginUserCache.evictAll();
+        }
+        return updated;
+    }
+
+    @Override
+    public boolean removeById(java.io.Serializable roleId) {
+        boolean removed = super.removeById(roleId);
+        if (removed) {
+            loginUserCache.evictAll();
+        }
+        return removed;
     }
 
     private void saveDepts(Long roleId, List<Long> deptIds) {

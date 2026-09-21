@@ -3,12 +3,16 @@ package com.oa.system.controller;
 import com.oa.common.core.result.AjaxResult;
 import com.oa.common.utils.StringUtils;
 import com.oa.security.model.LoginUser;
+import com.oa.security.service.LoginAttemptService;
 import com.oa.security.utils.JwtUtils;
 import com.oa.security.utils.SecurityUtils;
 import com.oa.system.domain.SysUser;
 import com.oa.system.service.ISysUserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletRequest;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -22,25 +26,31 @@ public class SysLoginController {
     @Autowired
     private JwtUtils jwtUtils;
 
+    @Autowired
+    private LoginAttemptService loginAttemptService;
+
     @PostMapping("/login")
-    public AjaxResult login(@RequestBody Map<String, String> loginBody) {
+    public AjaxResult login(@RequestBody Map<String, String> loginBody, HttpServletRequest request) {
         String username = loginBody.get("username");
         String password = loginBody.get("password");
+        String clientIp = request.getRemoteAddr();
 
         if (StringUtils.isEmpty(username) || StringUtils.isEmpty(password)) {
-            return AjaxResult.error("用户名或密码不能为空");
+            return AjaxResult.error(400, "用户名或密码不能为空");
+        }
+        if (loginAttemptService.isBlocked(username, clientIp)) {
+            return AjaxResult.error(429, "登录失败次数过多，请15分钟后再试");
         }
 
         LoginUser loginUser = userService.selectUserByUsername(username);
-        if (loginUser == null) {
-            return AjaxResult.error("用户不存在");
-        }
-        if (!SecurityUtils.matchesPassword(password, loginUser.getPassword())) {
-            return AjaxResult.error("密码错误");
+        if (loginUser == null || !SecurityUtils.matchesPassword(password, loginUser.getPassword())) {
+            loginAttemptService.recordFailure(username, clientIp);
+            return AjaxResult.error(400, "用户名或密码错误");
         }
         if (!"0".equals(loginUser.getStatus())) {
-            return AjaxResult.error("账号已被停用");
+            return AjaxResult.error(403, "账号已被停用");
         }
+        loginAttemptService.recordSuccess(username, clientIp);
 
         String token = jwtUtils.createToken(loginUser.getUsername(), loginUser.getUserId());
         Map<String, Object> userInfo = new HashMap<>();
@@ -74,6 +84,7 @@ public class SysLoginController {
         return AjaxResult.success(result);
     }
 
+    @PreAuthorize("@ss.hasPermi('system:user:add')")
     @PostMapping("/register")
     public AjaxResult register(@RequestBody SysUser user) {
         if (StringUtils.isEmpty(user.getUsername()) || StringUtils.isEmpty(user.getPassword())) {

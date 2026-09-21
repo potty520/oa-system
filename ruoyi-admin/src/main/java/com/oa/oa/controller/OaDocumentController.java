@@ -23,12 +23,21 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/oa/document")
 public class OaDocumentController extends BaseController {
+    private static final Set<String> ALLOWED_EXTENSIONS = new HashSet<>(Arrays.asList(
+            "doc", "docx", "pdf", "xls", "xlsx", "ppt", "pptx", "txt",
+            "png", "jpg", "jpeg", "gif", "bmp", "zip", "rar", "7z"
+    ));
+
     @Autowired
     private OaDocumentMapper documentMapper;
 
@@ -64,6 +73,10 @@ public class OaDocumentController extends BaseController {
         int dot = original.lastIndexOf('.');
         if (dot >= 0) {
             suffix = original.substring(dot).replaceAll("[^A-Za-z0-9.]", "");
+        }
+        String extension = suffix.startsWith(".") ? suffix.substring(1).toLowerCase(Locale.ROOT) : "";
+        if (!ALLOWED_EXTENSIONS.contains(extension)) {
+            return AjaxResult.error(400, "不支持的文件类型");
         }
         Path target = base.resolve(UUID.randomUUID().toString().replace("-", "") + suffix).normalize();
         if (!target.startsWith(base)) {

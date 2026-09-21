@@ -5,10 +5,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oa.oa.domain.OaIncomingDoc;
 import com.oa.oa.mapper.OaIncomingDocMapper;
 import com.oa.oa.service.IOaIncomingDocService;
+import com.oa.security.utils.SecurityUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class OaIncomingDocServiceImpl extends ServiceImpl<OaIncomingDocMapper, OaIncomingDoc> implements IOaIncomingDocService {
@@ -64,20 +67,25 @@ public class OaIncomingDocServiceImpl extends ServiceImpl<OaIncomingDocMapper, O
     @Override
     public int signOaIncomingDoc(Long docId) {
         OaIncomingDoc doc = baseMapper.selectById(docId);
-        if (doc != null && "0".equals(doc.getStatus())) {
-            doc.setStatus("1");
-            return baseMapper.updateById(doc);
-        }
-        return 0;
+        requireHandler(doc);
+        return baseMapper.updateStatusIfCurrent(docId, "0", "1", SecurityUtils.getUsername());
     }
 
     @Override
     public int completeOaIncomingDoc(Long docId) {
         OaIncomingDoc doc = baseMapper.selectById(docId);
-        if (doc != null && "1".equals(doc.getStatus())) {
-            doc.setStatus("2");
-            return baseMapper.updateById(doc);
+        requireHandler(doc);
+        return baseMapper.updateStatusIfCurrent(docId, "1", "2", SecurityUtils.getUsername());
+    }
+
+    private void requireHandler(OaIncomingDoc doc) {
+        if (doc == null || SecurityUtils.isAdmin(SecurityUtils.getUserId())) {
+            return;
         }
-        return 0;
+        Long userId = SecurityUtils.getUserId();
+        String username = SecurityUtils.getUsername();
+        if (!Objects.equals(doc.getHandlerId(), userId) && !Objects.equals(doc.getCreateBy(), username)) {
+            throw new AccessDeniedException("当前用户无权处理该收文");
+        }
     }
 }

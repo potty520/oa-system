@@ -740,8 +740,16 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 (40, '报销管理', 1, 4, 'reimbursement', 'oa/reimbursement/index', 'C', '0', '0', 'oa:reimbursement:list', 'money'),
 -- 收文
 (50, '收文管理', 1, 5, 'incoming-doc', 'oa/incoming-doc/index', 'C', '0', '0', 'oa:incomingDoc:list', 'log'),
+(51, '收文查询', 50, 1, '', NULL, 'F', '0', '0', 'oa:incomingDoc:query', '#'),
+(52, '收文新增', 50, 2, '', NULL, 'F', '0', '0', 'oa:incomingDoc:add', '#'),
+(53, '收文修改', 50, 3, '', NULL, 'F', '0', '0', 'oa:incomingDoc:edit', '#'),
+(54, '收文删除', 50, 4, '', NULL, 'F', '0', '0', 'oa:incomingDoc:remove', '#'),
 -- 发文
 (60, '发文管理', 1, 6, 'outgoing-doc', 'oa/outgoing-doc/index', 'C', '0', '0', 'oa:outgoingDoc:list', 'send'),
+(61, '发文查询', 60, 1, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:query', '#'),
+(62, '发文新增', 60, 2, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:add', '#'),
+(63, '发文修改', 60, 3, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:edit', '#'),
+(64, '发文删除', 60, 4, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:remove', '#'),
 -- 流程
 (70, '流程配置', 1, 7, 'doc-flow', 'oa/doc-flow/index', 'C', '0', '0', 'oa:docFlow:list', 'guide'),
 -- 待办
@@ -760,7 +768,7 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 -- 角色菜单关联（管理员拥有所有权限）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1), (1, 10), (1, 11), (1, 12), (1, 13), (1, 20), (1, 30), (1, 31), (1, 32),
-(1, 40), (1, 50), (1, 60), (1, 70), (1, 80), (1, 90), (1, 91), (1, 92), (1, 93), (1, 94), (1, 95), (1, 96), (1, 100), (1, 101), (1, 102);
+(1, 40), (1, 50), (1, 51), (1, 52), (1, 53), (1, 54), (1, 60), (1, 61), (1, 62), (1, 63), (1, 64), (1, 70), (1, 80), (1, 90), (1, 91), (1, 92), (1, 93), (1, 94), (1, 95), (1, 96), (1, 100), (1, 101), (1, 102);
 
 -- 普通用户菜单（只有查看和自己的操作）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES

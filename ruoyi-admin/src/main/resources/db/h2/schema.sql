@@ -616,7 +616,23 @@ MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, 
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (50, '收文管理', 1, 5, 'incoming-doc', 'oa/incoming-doc/index', 'C', '0', '0', 'oa:incomingDoc:list', 'log');
 
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (51, '收文查询', 50, 1, '', NULL, 'F', '0', '0', 'oa:incomingDoc:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (52, '收文新增', 50, 2, '', NULL, 'F', '0', '0', 'oa:incomingDoc:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (53, '收文修改', 50, 3, '', NULL, 'F', '0', '0', 'oa:incomingDoc:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (54, '收文删除', 50, 4, '', NULL, 'F', '0', '0', 'oa:incomingDoc:remove', '#');
+
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (60, '发文管理', 1, 6, 'outgoing-doc', 'oa/outgoing-doc/index', 'C', '0', '0', 'oa:outgoingDoc:list', 'send');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (61, '发文查询', 60, 1, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (62, '发文新增', 60, 2, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (63, '发文修改', 60, 3, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (64, '发文删除', 60, 4, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:remove', '#');
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (70, '流程配置', 1, 7, 'doc-flow', 'oa/doc-flow/index', 'C', '0', '0', 'oa:docFlow:list', 'guide');
 
@@ -664,7 +680,23 @@ MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 40
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 50);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 51);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 52);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 53);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 54);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 60);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 61);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 62);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 63);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 64);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 70);
 

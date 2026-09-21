@@ -1,7 +1,10 @@
 package com.oa.config;
 
 import com.oa.security.filter.JwtAuthenticationFilter;
+import com.oa.security.service.JwtTokenBlacklist;
+import com.oa.security.utils.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -29,6 +32,18 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @Autowired
+    private JwtUtils jwtUtils;
+
+    @Autowired
+    private JwtTokenBlacklist jwtTokenBlacklist;
+
+    @Value("${app.cors.allowed-origins:http://localhost:18081}")
+    private String allowedOrigins;
+
+    @Value("${app.security.public-api-docs:false}")
+    private boolean publicApiDocs;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -48,6 +63,10 @@ public class SecurityConfig {
             .logoutUrl("/logout")
             .deleteCookies("OA-Token")
             .logoutSuccessHandler((request, response, authentication) -> {
+                String token = resolveToken(request);
+                if (token != null && jwtUtils.validateToken(token)) {
+                    jwtTokenBlacklist.revoke(token, jwtUtils.parseToken(token).getExpiration().getTime());
+                }
                 response.setStatus(200);
                 response.setContentType("application/json;charset=UTF-8");
                 response.getWriter().write("{\"code\":200,\"msg\":\"退出成功\"}");
@@ -56,12 +75,12 @@ public class SecurityConfig {
             .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             .and()
             .authorizeRequests()
-            .antMatchers("/login", "/register", "/captcha/**", "/common/**").permitAll()
-            .antMatchers("/swagger-resources/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+            .antMatchers("/login", "/captcha/**").permitAll()
+            .antMatchers(publicApiDocPatterns()).permitAll()
             .antMatchers("/oa/announcement/published/**").permitAll()
             .anyRequest().authenticated()
             .and()
-            .headers().frameOptions().disable()
+            .headers().frameOptions().sameOrigin()
             .and()
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -71,13 +90,28 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList("*"));
+        configuration.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split("\\s*,\\s*")));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With"));
+        configuration.setAllowCredentials(false);
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    private String resolveToken(javax.servlet.http.HttpServletRequest request) {
+        String bearerToken = request.getHeader("Authorization");
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            return bearerToken.substring(7);
+        }
+        return null;
+    }
+
+    private String[] publicApiDocPatterns() {
+        if (publicApiDocs) {
+            return new String[]{"/swagger-resources/**", "/swagger-ui/**", "/v3/api-docs/**"};
+        }
+        return new String[]{"/__api-docs-disabled__"};
     }
 }

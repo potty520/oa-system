@@ -4,7 +4,7 @@ spring:
     driver-class-name: com.kingbase8.Driver
     url: jdbc:kingbase8://${DB_HOST:localhost}:${DB_PORT:54321}/${DB_NAME:oa_system}
     username: ${DB_USERNAME:system}
-    password: ${DB_PASSWORD:kingbase}
+    password: ${DB_PASSWORD}
   sql:
     init:
       mode: always

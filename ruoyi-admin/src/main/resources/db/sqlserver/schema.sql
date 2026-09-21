@@ -770,8 +770,32 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 50)
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (50, '收文管理', 1, 5, 'incoming-doc', 'oa/incoming-doc/index', 'C', '0', '0', 'oa:incomingDoc:list', 'log');
 
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 51)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (51, '收文查询', 50, 1, '', NULL, 'F', '0', '0', 'oa:incomingDoc:query', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 52)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (52, '收文新增', 50, 2, '', NULL, 'F', '0', '0', 'oa:incomingDoc:add', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 53)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (53, '收文修改', 50, 3, '', NULL, 'F', '0', '0', 'oa:incomingDoc:edit', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 54)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (54, '收文删除', 50, 4, '', NULL, 'F', '0', '0', 'oa:incomingDoc:remove', '#');
+
 IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 60)
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (60, '发文管理', 1, 6, 'outgoing-doc', 'oa/outgoing-doc/index', 'C', '0', '0', 'oa:outgoingDoc:list', 'send');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 61)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (61, '发文查询', 60, 1, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:query', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 62)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (62, '发文新增', 60, 2, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:add', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 63)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (63, '发文修改', 60, 3, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:edit', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 64)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (64, '发文删除', 60, 4, '', NULL, 'F', '0', '0', 'oa:outgoingDoc:remove', '#');
 
 IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 70)
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (70, '流程配置', 1, 7, 'doc-flow', 'oa/doc-flow/index', 'C', '0', '0', 'oa:docFlow:list', 'guide');
@@ -844,8 +868,32 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 40);
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 50)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 50);
 
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 51)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 51);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 52)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 52);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 53)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 53);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 54)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 54);
+
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 60)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 60);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 61)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 61);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 62)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 62);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 63)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 63);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 64)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 64);
 
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 70)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 70);

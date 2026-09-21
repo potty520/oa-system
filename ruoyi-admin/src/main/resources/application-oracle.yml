@@ -4,7 +4,7 @@ spring:
     driver-class-name: oracle.jdbc.OracleDriver
     url: jdbc:oracle:thin:@//${DB_HOST:localhost}:${DB_PORT:1521}/${DB_SERVICE:FREEPDB1}
     username: ${DB_USERNAME:oa_system}
-    password: ${DB_PASSWORD:oa_system}
+    password: ${DB_PASSWORD}
   sql:
     init:
       mode: ${DB_INIT_MODE:always}
