@@ -13,7 +13,6 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -85,9 +84,11 @@ class RbacSeedTest {
     }
 
     private List<String> permsOfRole(JdbcTemplate jdbc, Long roleId) {
-        Long userId = jdbc.queryForObject("SELECT user_id FROM sys_user_role WHERE role_id = ?", Long.class, roleId);
-        assertNotNull(userId, "角色 " + roleId + " 应至少绑定一个种子用户");
-        return permsOfUser(jdbc, userId);
+        // 一个角色可以绑定多个种子用户，取编号最小的那个即可代表该角色的权限
+        List<Long> userIds = jdbc.queryForList(
+                "SELECT user_id FROM sys_user_role WHERE role_id = ? ORDER BY user_id", Long.class, roleId);
+        assertFalse(userIds.isEmpty(), "角色 " + roleId + " 应至少绑定一个种子用户");
+        return permsOfUser(jdbc, userIds.get(0));
     }
 
     /** 直接复用 Mapper 上的 SQL，避免测试与实现各写一份而逐渐走偏。 */
