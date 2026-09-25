@@ -42,31 +42,53 @@ public class OaDocFlowServiceImpl extends ServiceImpl<OaDocFlowMapper, OaDocFlow
     @Transactional
     public int insertDocFlow(OaDocFlow docFlow) {
         int result = baseMapper.insert(docFlow);
-        if (docFlow.getSteps() != null && !docFlow.getSteps().isEmpty()) {
-            for (OaDocFlowStep step : docFlow.getSteps()) {
-                step.setStepId(null);
-                step.setFlowId(docFlow.getFlowId());
-                stepMapper.insert(step);
-            }
-        }
+        insertSteps(docFlow.getFlowId(), docFlow.getSteps());
         return result;
     }
 
     @Override
     @Transactional
     public int updateDocFlow(OaDocFlow docFlow) {
-        LambdaQueryWrapper<OaDocFlowStep> deleteWrapper = new LambdaQueryWrapper<>();
-        deleteWrapper.eq(OaDocFlowStep::getFlowId, docFlow.getFlowId());
-        stepMapper.delete(deleteWrapper);
+        OaDocFlow existing = requireExisting(docFlow == null ? null : docFlow.getFlowId());
+        // 只接受流程本身的配置字段，步骤仅在客户端显式提交时才整体替换，避免误清空
+        OaDocFlow update = new OaDocFlow();
+        update.setFlowId(existing.getFlowId());
+        update.setFlowName(docFlow.getFlowName());
+        update.setFlowType(docFlow.getFlowType());
+        update.setDescription(docFlow.getDescription());
+        update.setStatus(docFlow.getStatus());
+        update.setRemark(docFlow.getRemark());
 
-        if (docFlow.getSteps() != null && !docFlow.getSteps().isEmpty()) {
-            for (OaDocFlowStep step : docFlow.getSteps()) {
-                step.setStepId(null);
-                step.setFlowId(docFlow.getFlowId());
-                stepMapper.insert(step);
-            }
+        if (docFlow.getSteps() != null) {
+            LambdaQueryWrapper<OaDocFlowStep> deleteWrapper = new LambdaQueryWrapper<>();
+            deleteWrapper.eq(OaDocFlowStep::getFlowId, existing.getFlowId());
+            stepMapper.delete(deleteWrapper);
+            insertSteps(existing.getFlowId(), docFlow.getSteps());
         }
-        return baseMapper.updateById(docFlow);
+        return baseMapper.updateById(update);
+    }
+
+    private void insertSteps(Long flowId, List<OaDocFlowStep> steps) {
+        if (flowId == null || steps == null) {
+            return;
+        }
+        for (OaDocFlowStep step : steps) {
+            if (step == null) {
+                continue;
+            }
+            // 步骤归属由服务端决定，避免客户端把步骤挂到别的流程上
+            step.setStepId(null);
+            step.setFlowId(flowId);
+            stepMapper.insert(step);
+        }
+    }
+
+    private OaDocFlow requireExisting(Long flowId) {
+        OaDocFlow existing = flowId == null ? null : baseMapper.selectById(flowId);
+        if (existing == null) {
+            throw new IllegalArgumentException("流程配置不存在");
+        }
+        return existing;
     }
 
     @Override

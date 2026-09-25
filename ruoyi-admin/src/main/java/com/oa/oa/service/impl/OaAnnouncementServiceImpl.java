@@ -14,6 +14,12 @@ import java.util.List;
 @Service
 public class OaAnnouncementServiceImpl extends ServiceImpl<OaAnnouncementMapper, OaAnnouncement> implements IOaAnnouncementService {
 
+    /** 草稿 */
+    private static final String STATUS_DRAFT = "0";
+
+    /** 已发布 */
+    private static final String STATUS_PUBLISHED = "1";
+
     @Override
     public List<OaAnnouncement> selectOaAnnouncementList(OaAnnouncement announcement) {
         LambdaQueryWrapper<OaAnnouncement> wrapper = new LambdaQueryWrapper<>();
@@ -44,18 +50,41 @@ public class OaAnnouncementServiceImpl extends ServiceImpl<OaAnnouncementMapper,
 
     @Override
     public int insertOaAnnouncement(OaAnnouncement announcement) {
+        // 浏览量由服务端维护，状态缺省为草稿
+        announcement.setViewCount(0);
+        if (StringUtils.isBlank(announcement.getStatus())) {
+            announcement.setStatus(STATUS_DRAFT);
+        }
+        requireKnownStatus(announcement.getStatus());
         return baseMapper.insert(announcement);
     }
 
     @Override
     public int updateOaAnnouncement(OaAnnouncement announcement) {
-        return baseMapper.updateById(announcement);
+        OaAnnouncement existing = requireExisting(announcement == null ? null : announcement.getAnnId());
+        requireKnownStatus(announcement.getStatus());
+        // 只接受业务字段，浏览量与创建信息不允许被客户端改写
+        OaAnnouncement update = new OaAnnouncement();
+        update.setAnnId(existing.getAnnId());
+        update.setAnnTitle(announcement.getAnnTitle());
+        update.setAnnType(announcement.getAnnType());
+        update.setAnnContent(announcement.getAnnContent());
+        update.setAnnLevel(announcement.getAnnLevel());
+        update.setAttachmentUrl(announcement.getAttachmentUrl());
+        update.setPublishStartTime(announcement.getPublishStartTime());
+        update.setPublishEndTime(announcement.getPublishEndTime());
+        update.setIsTop(announcement.getIsTop());
+        update.setIsPublic(announcement.getIsPublic());
+        update.setStatus(announcement.getStatus());
+        update.setRemark(announcement.getRemark());
+        return baseMapper.updateById(update);
     }
 
     @Override
     public int deleteOaAnnouncementByIds(Long[] annIds) {
         int count = 0;
         for (Long annId : annIds) {
+            requireExisting(annId);
             count += baseMapper.deleteById(annId);
         }
         return count;
@@ -63,11 +92,24 @@ public class OaAnnouncementServiceImpl extends ServiceImpl<OaAnnouncementMapper,
 
     @Override
     public int incrementViewCount(Long annId) {
-        OaAnnouncement announcement = baseMapper.selectById(annId);
-        if (announcement != null) {
-            announcement.setViewCount(announcement.getViewCount() == null ? 1 : announcement.getViewCount() + 1);
-            return baseMapper.updateById(announcement);
+        if (annId == null) {
+            return 0;
         }
-        return 0;
+        // 用单条自增语句替代"读-改-写"，避免并发浏览时计数丢失
+        return baseMapper.incrementViewCount(annId);
+    }
+
+    private OaAnnouncement requireExisting(Long annId) {
+        OaAnnouncement existing = annId == null ? null : baseMapper.selectById(annId);
+        if (existing == null) {
+            throw new IllegalArgumentException("公告不存在");
+        }
+        return existing;
+    }
+
+    private void requireKnownStatus(String status) {
+        if (StringUtils.isNotBlank(status) && !STATUS_DRAFT.equals(status) && !STATUS_PUBLISHED.equals(status)) {
+            throw new IllegalArgumentException("公告状态只能是草稿或已发布");
+        }
     }
 }

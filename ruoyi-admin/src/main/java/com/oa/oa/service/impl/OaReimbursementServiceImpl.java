@@ -9,12 +9,17 @@ import com.oa.oa.mapper.OaReimbursementApproveLogMapper;
 import com.oa.oa.mapper.OaReimbursementDetailMapper;
 import com.oa.oa.mapper.OaReimbursementMapper;
 import com.oa.oa.service.IOaReimbursementService;
+import com.oa.common.constant.ApprovalStatus;
+import com.oa.security.model.LoginUser;
+import com.oa.security.utils.AccessGuards;
 import com.oa.security.utils.SecurityUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.List;
 
@@ -63,43 +68,61 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
     @Override
     @Transactional
     public int saveWithDetails(OaReimbursement reimbursement) {
-        reimbursement.setUserId(SecurityUtils.getUserId());
-        reimbursement.setUserName(SecurityUtils.getUsername());
-        reimbursement.setApprovalStatus("0");
+        // 申请人身份一律取当前登录用户，不接受客户端传入
+        LoginUser current = SecurityUtils.getLoginUser();
+        reimbursement.setUserId(current.getUserId());
+        reimbursement.setUserName(current.getUsername());
+        reimbursement.setDeptId(current.getDeptId());
+        reimbursement.setDeptName(current.getDeptName());
+        reimbursement.setApprovalStatus(ApprovalStatus.DRAFT);
         reimbursement.setCurrentStep(0);
         reimbursement.setApplyTime(new Date());
+        reimbursement.setPaymentStatus(null);
+        reimbursement.setPaymentTime(null);
+        reimbursement.setApproveBy(null);
+        reimbursement.setApproveTime(null);
+        reimbursement.setApproveRemark(null);
+        // 金额以明细为准，避免客户端提交与明细不一致的总额
+        reimbursement.setTotalAmount(sumDetails(reimbursement.getDetails()));
         int result = baseMapper.insert(reimbursement);
-
-        if (reimbursement.getDetails() != null && !reimbursement.getDetails().isEmpty()) {
-            for (OaReimbursementDetail detail : reimbursement.getDetails()) {
-                detail.setReimbId(reimbursement.getReimbId());
-                detailMapper.insert(detail);
-            }
-        }
+        insertDetails(reimbursement.getReimbId(), reimbursement.getDetails());
         return result;
     }
 
     @Override
     @Transactional
     public int updateOaReimbursement(OaReimbursement reimbursement) {
-        int result = baseMapper.updateById(reimbursement);
-        if (reimbursement.getDetails() != null) {
-            LambdaQueryWrapper<OaReimbursementDetail> wrapper = new LambdaQueryWrapper<>();
-            wrapper.eq(OaReimbursementDetail::getReimbId, reimbursement.getReimbId());
-            detailMapper.delete(wrapper);
-            for (OaReimbursementDetail detail : reimbursement.getDetails()) {
-                detail.setDetailId(null);
-                detail.setReimbId(reimbursement.getReimbId());
-                detailMapper.insert(detail);
-            }
+        OaReimbursement existing = requireExisting(reimbursement == null ? null : reimbursement.getReimbId());
+        AccessGuards.requireSelfOrAdmin(existing.getUserId(), "报销单");
+        if (!ApprovalStatus.DRAFT.equals(existing.getApprovalStatus())) {
+            throw new IllegalArgumentException("报销单已提交审批，不能再修改或删除");
         }
-        return result;
+        // 只接受业务字段，申请人、审批状态、支付状态等由服务端维护
+        OaReimbursement update = new OaReimbursement();
+        update.setReimbId(existing.getReimbId());
+        update.setReimbType(reimbursement.getReimbType());
+        update.setReimbReason(reimbursement.getReimbReason());
+        update.setRemark(reimbursement.getRemark());
+        if (reimbursement.getDetails() != null) {
+            update.setTotalAmount(sumDetails(reimbursement.getDetails()));
+            LambdaQueryWrapper<OaReimbursementDetail> wrapper = new LambdaQueryWrapper<>();
+            wrapper.eq(OaReimbursementDetail::getReimbId, existing.getReimbId());
+            detailMapper.delete(wrapper);
+            insertDetails(existing.getReimbId(), reimbursement.getDetails());
+        }
+        return baseMapper.updateById(update);
     }
 
     @Override
+    @Transactional
     public int deleteOaReimbursementByIds(Long[] reimbIds) {
         int count = 0;
         for (Long reimbId : reimbIds) {
+            OaReimbursement existing = requireExisting(reimbId);
+            AccessGuards.requireSelfOrAdmin(existing.getUserId(), "报销单");
+            if (!ApprovalStatus.DRAFT.equals(existing.getApprovalStatus())) {
+                throw new IllegalArgumentException("报销单已提交审批，不能再修改或删除");
+            }
             LambdaQueryWrapper<OaReimbursementDetail> detailWrapper = new LambdaQueryWrapper<>();
             detailWrapper.eq(OaReimbursementDetail::getReimbId, reimbId);
             detailMapper.delete(detailWrapper);
@@ -114,54 +137,109 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
     }
 
     @Override
+    @Transactional
     public int submitOaReimbursement(Long reimbId) {
-        OaReimbursement reimbursement = baseMapper.selectById(reimbId);
-        if (reimbursement != null && "0".equals(reimbursement.getApprovalStatus())) {
-            reimbursement.setApprovalStatus("1");
-            reimbursement.setCurrentStep(1);
-            return baseMapper.updateById(reimbursement);
+        OaReimbursement existing = requireExisting(reimbId);
+        AccessGuards.requireSelfOrAdmin(existing.getUserId(), "报销单");
+        if (!ApprovalStatus.DRAFT.equals(existing.getApprovalStatus())) {
+            throw new IllegalArgumentException("只有草稿状态的报销单才能提交审批");
         }
-        return 0;
+        OaReimbursement update = new OaReimbursement();
+        update.setReimbId(existing.getReimbId());
+        update.setApprovalStatus(ApprovalStatus.PENDING);
+        update.setCurrentStep(1);
+        return baseMapper.updateById(update);
     }
 
     @Override
     public int withdrawOaReimbursement(Long reimbId) {
-        OaReimbursement reimbursement = baseMapper.selectById(reimbId);
-        if (reimbursement != null && "1".equals(reimbursement.getApprovalStatus())) {
-            reimbursement.setApprovalStatus("0");
-            reimbursement.setCurrentStep(0);
-            return baseMapper.updateById(reimbursement);
+        OaReimbursement existing = requireExisting(reimbId);
+        AccessGuards.requireSelfOrAdmin(existing.getUserId(), "报销单");
+        if (!ApprovalStatus.PENDING.equals(existing.getApprovalStatus())) {
+            throw new IllegalArgumentException("只有审批中的报销单才能撤回");
         }
-        return 0;
+        OaReimbursement update = new OaReimbursement();
+        update.setReimbId(existing.getReimbId());
+        update.setApprovalStatus(ApprovalStatus.DRAFT);
+        update.setCurrentStep(0);
+        return baseMapper.updateById(update);
     }
 
     @Override
     @Transactional
     public int approveOaReimbursement(OaReimbursement reimbursement) {
-        OaReimbursement existReimbursement = baseMapper.selectById(reimbursement.getReimbId());
-        if (existReimbursement != null && "1".equals(existReimbursement.getApprovalStatus())) {
-            existReimbursement.setApprovalStatus(reimbursement.getApprovalStatus());
-            existReimbursement.setApproveBy(SecurityUtils.getUsername());
-            existReimbursement.setApproveTime(new Date());
-            existReimbursement.setApproveRemark(reimbursement.getApproveRemark());
-
-            if ("2".equals(reimbursement.getApprovalStatus())) {
-                existReimbursement.setPaymentStatus("0");
-            }
-
-            int result = baseMapper.updateById(existReimbursement);
-
-            OaReimbursementApproveLog log = new OaReimbursementApproveLog();
-            log.setReimbId(reimbursement.getReimbId());
-            log.setApproveResult(reimbursement.getApprovalStatus());
-            log.setApproveRemark(reimbursement.getApproveRemark());
-            log.setApproveBy(SecurityUtils.getUserId());
-            log.setApproveTime(new Date());
-            approveLogMapper.insert(log);
-
-            return result;
+        if (reimbursement == null || reimbursement.getReimbId() == null) {
+            throw new IllegalArgumentException("报销单ID不能为空");
         }
-        return 0;
+        if (!ApprovalStatus.isFinalDecision(reimbursement.getApprovalStatus())) {
+            throw new IllegalArgumentException("审批结果只能是通过或拒绝");
+        }
+        OaReimbursement existing = requireExisting(reimbursement.getReimbId());
+        if (!ApprovalStatus.PENDING.equals(existing.getApprovalStatus())) {
+            throw new IllegalArgumentException("该报销单不在审批中，无法审批");
+        }
+        Long current = SecurityUtils.getUserId();
+        if (!SecurityUtils.isAdmin(current) && current != null && current.equals(existing.getUserId())) {
+            throw new AccessDeniedException("不能审批自己提交的报销单");
+        }
+
+        Date now = new Date();
+        OaReimbursement update = new OaReimbursement();
+        update.setReimbId(existing.getReimbId());
+        update.setApprovalStatus(reimbursement.getApprovalStatus());
+        update.setApproveBy(SecurityUtils.getUsername());
+        update.setApproveTime(now);
+        update.setApproveRemark(reimbursement.getApproveRemark());
+        if (ApprovalStatus.APPROVED.equals(reimbursement.getApprovalStatus())) {
+            update.setPaymentStatus("0");
+        }
+        int result = baseMapper.updateById(update);
+
+        OaReimbursementApproveLog log = new OaReimbursementApproveLog();
+        log.setReimbId(existing.getReimbId());
+        log.setApproveResult(reimbursement.getApprovalStatus());
+        log.setApproveRemark(reimbursement.getApproveRemark());
+        log.setApproveBy(current);
+        log.setApproveTime(now);
+        approveLogMapper.insert(log);
+
+        return result;
+    }
+
+    private OaReimbursement requireExisting(Long reimbId) {
+        OaReimbursement existing = reimbId == null ? null : baseMapper.selectById(reimbId);
+        if (existing == null) {
+            throw new IllegalArgumentException("报销单不存在");
+        }
+        return existing;
+    }
+
+    private void insertDetails(Long reimbId, List<OaReimbursementDetail> details) {
+        if (reimbId == null || details == null) {
+            return;
+        }
+        for (OaReimbursementDetail detail : details) {
+            if (detail == null) {
+                continue;
+            }
+            // 明细归属由服务端决定，避免客户端把明细挂到别人的报销单上
+            detail.setDetailId(null);
+            detail.setReimbId(reimbId);
+            detailMapper.insert(detail);
+        }
+    }
+
+    private BigDecimal sumDetails(List<OaReimbursementDetail> details) {
+        BigDecimal total = BigDecimal.ZERO;
+        if (details == null) {
+            return total;
+        }
+        for (OaReimbursementDetail detail : details) {
+            if (detail != null && detail.getExpenseAmount() != null) {
+                total = total.add(detail.getExpenseAmount());
+            }
+        }
+        return total;
     }
 
     @Override

@@ -7,6 +7,7 @@ import com.oa.oa.domain.OaTodo;
 import com.oa.oa.service.ITodoService;
 import com.oa.security.utils.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,6 +19,7 @@ public class OaTodoController extends BaseController {
     @Autowired
     private ITodoService todoService;
 
+    @PreAuthorize("@ss.hasPermi('oa:todo:list')")
     @GetMapping("/list")
     public TableDataInfo list(OaTodo todo) {
         startPage();
@@ -26,6 +28,7 @@ public class OaTodoController extends BaseController {
         return getDataTable(list);
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:todo:list')")
     @GetMapping("/count")
     public AjaxResult count() {
         Long userId = SecurityUtils.getUserId();
@@ -33,6 +36,7 @@ public class OaTodoController extends BaseController {
         return AjaxResult.success(count);
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:todo:complete')")
     @PutMapping("/complete")
     public AjaxResult complete(@RequestParam String todoType, @RequestParam Long relatedId) {
         todoService.completeTodo(todoType, relatedId);
