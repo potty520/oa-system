@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
   sex TEXT DEFAULT '0',
   dept_id INTEGER,
   status TEXT DEFAULT '0',
+  must_change_pwd TEXT DEFAULT '0',
   login_ip TEXT DEFAULT '',
   login_date TEXT,
   create_by TEXT DEFAULT '',
@@ -544,10 +545,10 @@ INSERT OR IGNORE INTO sys_dept (dept_id, parent_id, ancestors, dept_name, order_
 (102, 100, '0,100', '财务部', 2, '李四', '13800000002', 'finance@example.com', '0'),
 (103, 100, '0,100', '技术部', 3, '王五', '13800000003', 'tech@example.com', '0');
 
-INSERT OR IGNORE INTO sys_user (user_id, username, password, nickname, dept_id, status, create_time) VALUES
-(1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '超级管理员', 100, '0', CURRENT_TIMESTAMP),
-(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', 103, '0', CURRENT_TIMESTAMP),
-(3, 'lisi', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '李四', 102, '0', CURRENT_TIMESTAMP);
+INSERT OR IGNORE INTO sys_user (user_id, username, password, nickname, dept_id, status, must_change_pwd, create_time) VALUES
+(1, 'admin', 'PENDING_INITIAL_PASSWORD', '超级管理员', 100, '0', '1', CURRENT_TIMESTAMP),
+(2, 'zhangsan', 'PENDING_INITIAL_PASSWORD', '张三', 103, '0', '1', CURRENT_TIMESTAMP),
+(3, 'lisi', 'PENDING_INITIAL_PASSWORD', '李四', 102, '0', '1', CURRENT_TIMESTAMP);
 
 INSERT OR IGNORE INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES
 (1, '超级管理员', 'admin', 1, '1', '0'),

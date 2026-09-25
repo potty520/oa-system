@@ -42,6 +42,9 @@ public class LoginUser implements UserDetails {
     /** 账号状态（0正常 1停用） */
     private String status;
 
+    /** 首次登录必须修改密码（0否 1是） */
+    private String mustChangePwd;
+
     public LoginUser() {}
 
     public LoginUser(Long userId, String username, String password, String nickname,

@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -16,9 +17,14 @@ import java.sql.Statement;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+@Order(1)
 @Component
 public class DatabaseMigrationRunner implements ApplicationRunner {
     private static final Logger log = LoggerFactory.getLogger(DatabaseMigrationRunner.class);
+
+    /** 历史版本内置的演示口令 admin123 的 BCrypt 值，属于公开已知弱口令。 */
+    private static final String LEGACY_DEMO_PASSWORD_HASH =
+            "$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2";
 
     private final DataSource dataSource;
 
@@ -29,6 +35,8 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) throws Exception {
         try (Connection connection = dataSource.getConnection()) {
+            ensureColumn(connection, "sys_user", "must_change_pwd", "CHAR(1)");
+            migrateMustChangePwd(connection);
             ensureColumn(connection, "oa_doc_template", "doc_type_id", "BIGINT");
             ensureColumn(connection, "oa_incoming_doc", "flow_id", "BIGINT");
             ensureColumn(connection, "oa_incoming_doc", "current_step_id", "BIGINT");
@@ -60,6 +68,24 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
             log.info("Added {}.{} column", tableName, columnName);
+        }
+    }
+
+    /**
+     * 补齐老库的 must_change_pwd 取值：新增列后历史行为 NULL，统一回填 '0'；
+     * 仍在使用内置演示口令 admin123 的账号则强制首次登录改密。
+     */
+    private void migrateMustChangePwd(Connection connection) throws SQLException {
+        try (Statement statement = connection.createStatement()) {
+            statement.executeUpdate("UPDATE sys_user SET must_change_pwd = '0' WHERE must_change_pwd IS NULL");
+        }
+        try (PreparedStatement update = connection.prepareStatement(
+                "UPDATE sys_user SET must_change_pwd = '1' WHERE password = ?")) {
+            update.setString(1, LEGACY_DEMO_PASSWORD_HASH);
+            int rows = update.executeUpdate();
+            if (rows > 0) {
+                log.warn("检测到 {} 个账号仍在使用内置演示口令，已标记为首次登录必须修改密码", rows);
+            }
         }
     }
 

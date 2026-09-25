@@ -30,9 +30,27 @@ async (page) => {
 
   await page.goto('http://localhost:18081/login', { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.getByRole('textbox', { name: '用户名' }).fill('admin');
-  await page.getByRole('textbox', { name: '密码' }).fill('admin123');
+  const adminPassword = process.env.OA_INIT_ADMIN_PASSWORD;
+  if (!adminPassword) {
+    throw new Error('请设置环境变量 OA_INIT_ADMIN_PASSWORD（初始密码见后端启动日志）');
+  }
+  await page.getByRole('textbox', { name: '密码' }).fill(adminPassword);
   await page.getByRole('button', { name: '登 录' }).click();
   await page.waitForURL('**/dashboard', { timeout: 20000 });
+  // 初始账号首次登录会被强制改密弹窗拦住，用 OA_TEST_NEW_PASSWORD 完成改密后继续
+  const forcedTitle = page.locator('.el-dialog__wrapper:visible .el-dialog__title', { hasText: '首次登录请修改密码' });
+  if (await forcedTitle.count()) {
+    const newPassword = process.env.OA_TEST_NEW_PASSWORD;
+    if (!newPassword) {
+      throw new Error('账号处于强制改密状态，请设置 OA_TEST_NEW_PASSWORD 后重试');
+    }
+    const forcedDialog = page.locator('.el-dialog__wrapper:visible .el-dialog');
+    await forcedDialog.getByPlaceholder('请输入原密码').fill(adminPassword);
+    await forcedDialog.getByPlaceholder('8-64 位，需同时包含字母和数字').fill(newPassword);
+    await forcedDialog.getByPlaceholder('请再次输入新密码').fill(newPassword);
+    await forcedDialog.getByRole('button', { name: '确 定' }).click();
+    await page.waitForTimeout(1200);
+  }
   const loggedIn = (await page.locator('body').innerText()).includes('欢迎使用OA办公系统');
 
   const routeResults = [];

@@ -2,8 +2,10 @@ package com.oa.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.oa.common.constant.Constants;
 import com.oa.security.model.LoginUser;
 import com.oa.security.service.LoginUserCache;
+import com.oa.security.utils.PasswordPolicy;
 import com.oa.security.utils.SecurityUtils;
 import com.oa.system.domain.SysDept;
 import com.oa.system.domain.SysRole;
@@ -55,6 +57,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 sysUser.getStatus()
         );
         loginUser.setPermissions(permissions);
+        loginUser.setMustChangePwd(sysUser.getMustChangePwd());
         return loginUser;
     }
 
@@ -88,8 +91,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     @Transactional
     public int insertUser(SysUser user) {
-        if (StringUtils.isNotBlank(user.getPassword())) {
-            user.setPassword(SecurityUtils.encryptPassword(user.getPassword()));
+        if (StringUtils.isBlank(user.getPassword())) {
+            throw new IllegalArgumentException("密码不能为空");
+        }
+        String violation = PasswordPolicy.validate(user.getPassword());
+        if (violation != null) {
+            throw new IllegalArgumentException(violation);
+        }
+        user.setPassword(SecurityUtils.encryptPassword(user.getPassword()));
+        if (StringUtils.isBlank(user.getMustChangePwd())) {
+            // 由管理员代设的初始口令同样要求首次登录修改
+            user.setMustChangePwd(Constants.MUST_CHANGE_PWD_YES);
         }
         int rows = baseMapper.insert(user);
         saveUserRoles(user.getUserId(), user.getRoleIds());
@@ -108,8 +120,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (StringUtils.isBlank(user.getPassword())) {
             user.setPassword(existing.getPassword());
         } else {
+            String violation = PasswordPolicy.validate(user.getPassword());
+            if (violation != null) {
+                throw new IllegalArgumentException(violation);
+            }
             user.setPassword(SecurityUtils.encryptPassword(user.getPassword()));
         }
+        // 强制改密标记只能由本人改密或管理员重置密码接口变更，避免通过编辑用户直接绕过
+        user.setMustChangePwd(existing.getMustChangePwd());
         int rows = baseMapper.updateById(user);
         userMapper.deleteUserRoleByUserId(user.getUserId());
         userMapper.deleteUserPostByUserId(user.getUserId());
@@ -153,15 +171,40 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (StringUtils.isBlank(user.getPassword())) {
             return 0;
         }
+        String violation = PasswordPolicy.validate(user.getPassword());
+        if (violation != null) {
+            throw new IllegalArgumentException(violation);
+        }
         SysUser existing = baseMapper.selectById(user.getUserId());
         SysUser update = new SysUser();
         update.setUserId(user.getUserId());
         update.setPassword(SecurityUtils.encryptPassword(user.getPassword()));
+        // 管理员重置后同样要求本人首次登录改密
+        update.setMustChangePwd(Constants.MUST_CHANGE_PWD_YES);
         int rows = baseMapper.updateById(update);
         if (existing != null) {
             loginUserCache.evict(existing.getUsername());
         }
         return rows;
+    }
+
+    @Override
+    @Transactional
+    public String updateOwnPassword(Long userId, String oldPassword, String newPassword) {
+        SysUser existing = baseMapper.selectById(userId);
+        if (existing == null) {
+            return "用户不存在";
+        }
+        if (!SecurityUtils.matchesPassword(oldPassword, existing.getPassword())) {
+            return "原密码不正确";
+        }
+        SysUser update = new SysUser();
+        update.setUserId(userId);
+        update.setPassword(SecurityUtils.encryptPassword(newPassword));
+        update.setMustChangePwd(Constants.MUST_CHANGE_PWD_NO);
+        baseMapper.updateById(update);
+        loginUserCache.evict(existing.getUsername());
+        return null;
     }
 
     private void saveUserRoles(Long userId, List<Long> roleIds) {

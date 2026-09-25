@@ -37,6 +37,10 @@ public class SysUser extends BaseEntity {
     private String sex;
     private Long deptId;
     private String status;
+
+    /** 首次登录必须修改密码（0否 1是） */
+    private String mustChangePwd;
+
     private String loginIp;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

@@ -1,10 +1,17 @@
-param([string]$BaseUrl='http://localhost:18081/api')
+param(
+  [string]$BaseUrl='http://localhost:18081/api',
+  # 仓库不再内置默认口令，初始密码来自启动日志或 OA_INIT_<用户名大写>_PASSWORD
+  [string]$AdminPassword=$env:OA_INIT_ADMIN_PASSWORD,
+  [string]$CommonPassword=$env:OA_INIT_ZHANGSAN_PASSWORD
+)
 $ErrorActionPreference='Stop'
+if(-not $AdminPassword){throw '请用 -AdminPassword 或环境变量 OA_INIT_ADMIN_PASSWORD 提供 admin 密码'}
+if(-not $CommonPassword){throw '请用 -CommonPassword 或环境变量 OA_INIT_ZHANGSAN_PASSWORD 提供 zhangsan 密码'}
 $suffix=[DateTimeOffset]::Now.ToUnixTimeSeconds()
 $results=New-Object System.Collections.Generic.List[object]
 function Check($name,$condition,$detail=''){ $state=$(if($condition){'PASS'}else{'FAIL'}); Write-Host "$state $name $detail"; $results.Add([pscustomobject]@{Test=$name;Result=$state;Detail=$detail})|Out-Null; if(-not $condition){throw "FAILED: $name $detail"} }
 function Api($method,$path,$body,$token){$headers=@{};if($token){$headers.Authorization='Bearer '+$token};$p=@{Uri=$BaseUrl+$path;Method=$method;Headers=$headers;TimeoutSec=15};if($null -ne $body){$p.ContentType='application/json';$p.Body=$body|ConvertTo-Json -Depth 12 -Compress};try{Invoke-RestMethod @p}catch{$status=[int]$_.Exception.Response.StatusCode; [pscustomobject]@{code=$status;msg=$_.Exception.Message}}}
-$admin=Api Post '/login' @{username='admin';password='admin123'} $null; $token=$admin.data.token
+$admin=Api Post '/login' @{username='admin';password=$AdminPassword} $null; $token=$admin.data.token
 $register=Api Post '/register' @{userName="anonymous$suffix";nickName='匿名';password='Test123456'} $null; Check '匿名注册拦截' ($register.code -eq 403) $register.msg
 $probeUser="missing-user-$suffix"; $probeCode=0; foreach($attempt in 1..5){$probe=Api Post '/login' @{username=$probeUser;password='wrong-password'} $null; $probeCode=$probe.code}; Check '登录失败计数' ($probeCode -eq 400) "code=$probeCode"
 $locked=Api Post '/login' @{username=$probeUser;password='wrong-password'} $null; Check '登录失败锁定' ($locked.code -eq 429) $locked.msg
@@ -52,7 +59,7 @@ $usersToCreate=@(
  @{userName="scope103$suffix";nickName='范围103';password='Test123456';deptId=103;roleIds=@(2)},
  @{userName="scope101$suffix";nickName='范围101';password='Test123456';deptId=101;roleIds=@(2)}
 ); $createdUsers=@(); foreach($u in $usersToCreate){ $r=Api Post '/system/user' $u $token; $ul=Api Get ("/system/user/list?pageNum=1&pageSize=20&userName="+$u.userName) $null $token; $createdUsers+=($ul.rows|Select-Object -First 1) }
-$commonLogin=Api Post '/login' @{username='zhangsan';password='admin123'} $null; $zh=$commonLogin.data.token
+$commonLogin=Api Post '/login' @{username='zhangsan';password=$CommonPassword} $null; $zh=$commonLogin.data.token
 $unauthorizedAdd=Api Post '/oa/incomingDoc' @{docNumber="DENIED-IN-$suffix";docTitle='越权收文';sourceUnit='测试';receiveDate='2026-09-20';docLevel='1';docSecret='1';status='0'} $zh; Check '普通用户收文新增权限拦截' ($unauthorizedAdd.code -eq 403) $unauthorizedAdd.msg
 $unauthorizedDelete=Api Delete ("/oa/incomingDoc/"+$inId) $null $zh; Check '普通用户收文删除权限拦截' ($unauthorizedDelete.code -eq 403) $unauthorizedDelete.msg
 $unauthNum="DENIED-ACTION-$suffix"; Api Post '/oa/incomingDoc' @{docNumber=$unauthNum;docTitle='越权审批测试';sourceUnit='测试';receiveDate='2026-09-20';docLevel='1';docSecret='1';docTypeId=1000;status='0'} $token|Out-Null
@@ -94,7 +101,7 @@ $customScope=Api Get '/system/user/contacts' $null $zh; Check '自定义部门�
 Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();status='0'} $token|Out-Null
 Api Put '/system/role' @{roleId=3;roleName='部门经理';roleKey='manager';roleSort=3;dataScope='3';deptIds=@();status='0'} $token|Out-Null
 Api Put '/system/user' @{userId=2;userName='zhangsan';nickName='张三';deptId=103;roleIds=@(2,3);status='0'} $token|Out-Null
-$combinedLogin=Api Post '/login' @{username='zhangsan';password='admin123'} $null
+$combinedLogin=Api Post '/login' @{username='zhangsan';password=$CommonPassword} $null
 $combinedScope=Api Get '/system/user/contacts' $null $combinedLogin.data.token
 Check '多角色数据范围并集' (@($combinedScope.data|Where-Object {$_.deptId -eq 103}).Count -ge 2) "count=$(@($combinedScope.data).Count)"
 # restore role scopes and user role
@@ -181,13 +188,13 @@ Check '管理员删除文件成功' ($adminDeleteFile.code -eq 200) $adminDelete
 $logs=Api Get '/system/log/list?pageNum=1&pageSize=100' $null $token; Check '审计日志生成' (@($logs.rows).Count  -gt  0) "count=$($logs.total)"
 $loginLogs=Api Get '/system/log/list?pageNum=1&pageSize=100&title=SysLoginController' $null $token
 $loginLog=$loginLogs.rows|Where-Object {$_.operParam -match 'password'}|Select-Object -First 1; Check '登录日志存在' ($null -ne $loginLog) "count=$($loginLogs.total)"
-Check '登录参数密码脱敏' ($loginLog.operParam -match '\*\*\*' -and $loginLog.operParam -notmatch 'admin123') $loginLog.operParam
+Check '登录参数密码脱敏' ($loginLog.operParam -match '\*\*\*' -and $loginLog.operParam -notmatch [regex]::Escape($AdminPassword)) $loginLog.operParam
 Check '登录响应token脱敏' ($loginLog.jsonResult -match '\*\*\*' -and $loginLog.jsonResult -notmatch 'eyJ') $loginLog.jsonResult
 $badActionLogs=Api Get '/system/log/list?pageNum=1&pageSize=500&title=OaDocProcessController' $null $token
 $badActionLog=$badActionLogs.rows|Where-Object {$_.operUrl -eq '/oa/doc/action/1/99999999'}|Select-Object -First 1
 Check '失败操作审计准确' ($null -ne $badActionLog -and $badActionLog.status -eq '1' -and $badActionLog.operatorName -eq 'admin' -and $badActionLog.errorMsg -match '公文不存在') "log=$($badActionLog|ConvertTo-Json -Compress)"
 $export=Invoke-WebRequest -Uri ($BaseUrl+'/system/log/export') -Headers @{Authorization='Bearer '+$token} -UseBasicParsing -TimeoutSec 20; Check '审计日志导出' ($export.StatusCode -eq  200 -and $export.RawContentLength -gt  0) "length=$($export.RawContentLength)"
-Check '审计归档不含明文凭证' ($export.Content -notmatch 'admin123' -and $export.Content -notmatch 'eyJ') "length=$($export.RawContentLength)"
+Check '审计归档不含明文凭证' ($export.Content -notmatch [regex]::Escape($AdminPassword) -and $export.Content -notmatch 'eyJ') "length=$($export.RawContentLength)"
 $clean=Api Delete '/system/log/clean?days=3650' $null $token; Check '审计日志清理接口' ($clean.code -eq  200) $clean.msg
 # cleanup documents/users
 foreach($matrix in $matrixDocs){ if($matrix.Id){Api Delete ("/oa/"+($(if($matrix.Type -eq '1'){'incomingDoc'}else{'outgoingDoc'}))+"/"+$matrix.Id) $null $token|Out-Null} }

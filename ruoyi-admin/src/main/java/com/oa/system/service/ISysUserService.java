@@ -24,4 +24,7 @@ public interface ISysUserService extends IService<SysUser> {
     int changeStatus(SysUser user);
 
     int resetPassword(SysUser user);
+
+    /** 校验原密码后修改本人密码；成功返回 null，失败返回可直接展示给用户的中文原因。 */
+    String updateOwnPassword(Long userId, String oldPassword, String newPassword);
 }

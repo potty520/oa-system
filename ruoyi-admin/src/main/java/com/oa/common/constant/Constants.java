@@ -39,4 +39,16 @@ public class Constants {
 
     /** 删除标志：已删除 */
     public static final String DEL_FLAG_DELETED = "2";
+
+    /**
+     * 初始账号的口令占位符。它不是合法的 BCrypt 串，任何密码都无法与之匹配，
+     * 首次启动时由 InitialAccountInitializer 替换为真实口令。
+     */
+    public static final String PENDING_PASSWORD = "PENDING_INITIAL_PASSWORD";
+
+    /** 首次登录必须修改密码 */
+    public static final String MUST_CHANGE_PWD_YES = "1";
+
+    /** 无需强制修改密码 */
+    public static final String MUST_CHANGE_PWD_NO = "0";
 }

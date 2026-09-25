@@ -1,5 +1,6 @@
 package com.oa.system.controller;
 
+import com.oa.common.constant.Constants;
 import com.oa.common.core.result.AjaxResult;
 import com.oa.common.utils.StringUtils;
 import com.oa.security.model.LoginUser;
@@ -47,7 +48,9 @@ public class SysLoginController {
         }
 
         LoginUser loginUser = userService.selectUserByUsername(username);
-        if (loginUser == null || !SecurityUtils.matchesPassword(password, loginUser.getPassword())) {
+        // 占位口令不是合法 BCrypt 串，直接短路，既避免无意义的哈希比对也不暴露账号状态
+        if (loginUser == null || Constants.PENDING_PASSWORD.equals(loginUser.getPassword())
+                || !SecurityUtils.matchesPassword(password, loginUser.getPassword())) {
             loginAttemptService.recordFailure(username, clientIp);
             return AjaxResult.error(400, "用户名或密码错误");
         }
@@ -62,11 +65,16 @@ public class SysLoginController {
         userInfo.put("userName", loginUser.getUsername());
         userInfo.put("nickName", loginUser.getNickname());
         userInfo.put("avatar", loginUser.getAvatar());
+        userInfo.put("mustChangePwd", mustChangePwd(loginUser));
 
         Map<String, Object> result = new HashMap<>();
         result.put("token", token);
         result.put("userInfo", userInfo);
         return AjaxResult.success("登录成功", result);
+    }
+
+    private boolean mustChangePwd(LoginUser loginUser) {
+        return Constants.MUST_CHANGE_PWD_YES.equals(loginUser.getMustChangePwd());
     }
 
     private String resolveClientIp(HttpServletRequest request) {
@@ -91,6 +99,7 @@ public class SysLoginController {
         user.put("userName", loginUser.getUsername());
         user.put("nickName", loginUser.getNickname());
         user.put("avatar", loginUser.getAvatar());
+        user.put("mustChangePwd", mustChangePwd(loginUser));
 
         Map<String, Object> result = new HashMap<>();
         result.put("user", user);

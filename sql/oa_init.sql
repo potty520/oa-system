@@ -42,6 +42,7 @@ CREATE TABLE sys_user (
   sex           CHAR(1) DEFAULT '0' COMMENT '性别（0男 1女 2未知）',
   dept_id       BIGINT DEFAULT NULL COMMENT '部门ID',
   status        CHAR(1) DEFAULT '0' COMMENT '状态（0正常 1停用）',
+  must_change_pwd CHAR(1) DEFAULT '0' COMMENT '首次登录必须改密（0否 1是）',
   login_ip      VARCHAR(128) DEFAULT '' COMMENT '最后登录IP',
   login_date    DATETIME DEFAULT NULL COMMENT '最后登录时间',
   create_by     VARCHAR(64) DEFAULT '' COMMENT '创建者',
@@ -703,11 +704,13 @@ INSERT INTO sys_dept (dept_id, parent_id, ancestors, dept_name, order_num, leade
 (101, 100, '0,100', '行政部', 1, '张三', '13800000001', 'hr@example.com', '0'),
 (102, 100, '0,100', '财务部', 2, '李四', '13800000002', 'finance@example.com', '0'),
 (103, 100, '0,100', '技术部', 3, '王五', '13800000003', 'tech@example.com', '0');
--- 默认管理员用户（密码: admin123，BCrypt加密）
-INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status) VALUES
-(1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '超级管理员', 100, '0'),
-(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', 103, '0'),
-(3, 'lisi', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '李四', 102, '0');
+-- 初始账号不内置任何可用口令：password 为占位符（不是合法 BCrypt 串，任何密码都无法登录）。
+-- 应用首次启动时由 InitialAccountInitializer 按 OA_INIT_<用户名大写>_PASSWORD 环境变量写入真实口令，
+-- 未配置该环境变量时生成一次性随机密码，仅在启动日志输出一次，并强制首次登录修改密码。
+INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, must_change_pwd) VALUES
+(1, 'admin', 'PENDING_INITIAL_PASSWORD', '超级管理员', 100, '0', '1'),
+(2, 'zhangsan', 'PENDING_INITIAL_PASSWORD', '张三', 103, '0', '1'),
+(3, 'lisi', 'PENDING_INITIAL_PASSWORD', '李四', 102, '0', '1');
 
 -- 角色
 INSERT INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES

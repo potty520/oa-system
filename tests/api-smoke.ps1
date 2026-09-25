@@ -1,8 +1,11 @@
 param(
-    [string]$BaseUrl = 'http://localhost:18081/api'
+    [string]$BaseUrl = 'http://localhost:18081/api',
+    # 仓库不再内置默认口令，admin 初始密码来自启动日志或 OA_INIT_ADMIN_PASSWORD
+    [string]$AdminPassword = $env:OA_INIT_ADMIN_PASSWORD
 )
 
 $ErrorActionPreference = 'Stop'
+if (-not $AdminPassword) { throw '请用 -AdminPassword 或环境变量 OA_INIT_ADMIN_PASSWORD 提供 admin 密码' }
 $script:Results = New-Object System.Collections.Generic.List[object]
 $suffix = [DateTimeOffset]::Now.ToUnixTimeSeconds()
 
@@ -45,7 +48,7 @@ try {
         Assert-Test ($status -in 401, 403) '未登录访问拦截' "HTTP $status"
     }
 
-    $login = Invoke-Api 'Post' '/login' @{ username = 'admin'; password = 'admin123' }
+    $login = Invoke-Api 'Post' '/login' @{ username = 'admin'; password = $AdminPassword }
     Assert-Test ($login.code -eq 200 -and $login.data.token) '管理员登录' $login.data.userInfo.userName
     $token = $login.data.token
 

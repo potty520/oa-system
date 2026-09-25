@@ -42,6 +42,7 @@ CREATE TABLE sys_user (
   sex NCHAR(1) DEFAULT '0',
   dept_id BIGINT,
   status NCHAR(1) DEFAULT '0',
+  must_change_pwd NCHAR(1) DEFAULT '0',
   login_ip NVARCHAR(128) DEFAULT '',
   login_date DATETIME2,
   create_by NVARCHAR(64) DEFAULT '',
@@ -687,13 +688,13 @@ SET IDENTITY_INSERT sys_dept OFF;
 SET IDENTITY_INSERT sys_user ON;
 
 IF NOT EXISTS (SELECT 1 FROM sys_user WHERE user_id = 1)
-INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, create_time) VALUES (1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '超级管理员', 100, '0', CURRENT_TIMESTAMP);
+INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, must_change_pwd, create_time) VALUES (1, 'admin', 'PENDING_INITIAL_PASSWORD', '超级管理员', 100, '0', '1', CURRENT_TIMESTAMP);
 
 IF NOT EXISTS (SELECT 1 FROM sys_user WHERE user_id = 2)
-INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, create_time) VALUES (2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', 103, '0', CURRENT_TIMESTAMP);
+INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, must_change_pwd, create_time) VALUES (2, 'zhangsan', 'PENDING_INITIAL_PASSWORD', '张三', 103, '0', '1', CURRENT_TIMESTAMP);
 
 IF NOT EXISTS (SELECT 1 FROM sys_user WHERE user_id = 3)
-INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, create_time) VALUES (3, 'lisi', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '李四', 102, '0', CURRENT_TIMESTAMP);
+INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, must_change_pwd, create_time) VALUES (3, 'lisi', 'PENDING_INITIAL_PASSWORD', '李四', 102, '0', '1', CURRENT_TIMESTAMP);
 
 SET IDENTITY_INSERT sys_user OFF;
 

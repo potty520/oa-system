@@ -1,5 +1,11 @@
-param([string]$BaseUrl='http://localhost:18081/api')
+param(
+  [string]$BaseUrl='http://localhost:18081/api',
+  # 仓库不再内置默认口令，admin 初始密码来自启动日志或 OA_INIT_ADMIN_PASSWORD
+  [string]$AdminPassword=$env:OA_INIT_ADMIN_PASSWORD,
+  [string]$CommonPassword=$env:OA_INIT_ZHANGSAN_PASSWORD
+)
 $ErrorActionPreference='Stop'
+if(-not $AdminPassword){throw '请用 -AdminPassword 或环境变量 OA_INIT_ADMIN_PASSWORD 提供 admin 密码'}
 $suffix=[DateTimeOffset]::Now.ToUnixTimeSeconds()
 function Api($method,$path,$body,$token) {
   $headers=@{}
@@ -8,7 +14,7 @@ function Api($method,$path,$body,$token) {
   if($null -ne $body){$params.ContentType='application/json';$params.Body=$body|ConvertTo-Json -Depth 10 -Compress}
   Invoke-RestMethod @params
 }
-$login=Api Post '/login' @{username='admin';password='admin123'} $null
+$login=Api Post '/login' @{username='admin';password=$AdminPassword} $null
 if($login.code -ne 200){throw 'login failed'}
 $token=$login.data.token
 $incoming=Api Post '/oa/incomingDoc' @{docNumber="G6-IN-$suffix";docTitle="G6收文流程测试$suffix";sourceUnit='测试单位';receiveDate='2026-09-20';docLevel='1';docSecret='1';summary='流程测试';status='0'} $token

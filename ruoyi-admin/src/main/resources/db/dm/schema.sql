@@ -36,6 +36,7 @@ CREATE TABLE sys_user (
   sex CHAR(1) DEFAULT '0',
   dept_id NUMBER(19),
   status CHAR(1) DEFAULT '0',
+  must_change_pwd CHAR(1) DEFAULT '0',
   login_ip VARCHAR2(128) DEFAULT ' ',
   login_date TIMESTAMP,
   create_by VARCHAR2(64) DEFAULT ' ',
@@ -576,11 +577,11 @@ SET IDENTITY_INSERT sys_dept OFF;
 
 SET IDENTITY_INSERT sys_user ON;
 
-MERGE INTO sys_user t USING (SELECT 1 AS user_id, 'admin' AS username, '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2' AS password, '超级管理员' AS nickname, 100 AS dept_id, '0' AS status, CURRENT_TIMESTAMP AS create_time FROM DUAL) s ON (t.user_id = s.user_id) WHEN NOT MATCHED THEN INSERT (user_id, username, password, nickname, dept_id, status, create_time) VALUES (s.user_id, s.username, s.password, s.nickname, s.dept_id, s.status, s.create_time);
+MERGE INTO sys_user t USING (SELECT 1 AS user_id, 'admin' AS username, 'PENDING_INITIAL_PASSWORD' AS password, '超级管理员' AS nickname, 100 AS dept_id, '0' AS status, '1' AS must_change_pwd, CURRENT_TIMESTAMP AS create_time FROM DUAL) s ON (t.user_id = s.user_id) WHEN NOT MATCHED THEN INSERT (user_id, username, password, nickname, dept_id, status, must_change_pwd, create_time) VALUES (s.user_id, s.username, s.password, s.nickname, s.dept_id, s.status, s.must_change_pwd, s.create_time);
 
-MERGE INTO sys_user t USING (SELECT 2 AS user_id, 'zhangsan' AS username, '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2' AS password, '张三' AS nickname, 103 AS dept_id, '0' AS status, CURRENT_TIMESTAMP AS create_time FROM DUAL) s ON (t.user_id = s.user_id) WHEN NOT MATCHED THEN INSERT (user_id, username, password, nickname, dept_id, status, create_time) VALUES (s.user_id, s.username, s.password, s.nickname, s.dept_id, s.status, s.create_time);
+MERGE INTO sys_user t USING (SELECT 2 AS user_id, 'zhangsan' AS username, 'PENDING_INITIAL_PASSWORD' AS password, '张三' AS nickname, 103 AS dept_id, '0' AS status, '1' AS must_change_pwd, CURRENT_TIMESTAMP AS create_time FROM DUAL) s ON (t.user_id = s.user_id) WHEN NOT MATCHED THEN INSERT (user_id, username, password, nickname, dept_id, status, must_change_pwd, create_time) VALUES (s.user_id, s.username, s.password, s.nickname, s.dept_id, s.status, s.must_change_pwd, s.create_time);
 
-MERGE INTO sys_user t USING (SELECT 3 AS user_id, 'lisi' AS username, '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2' AS password, '李四' AS nickname, 102 AS dept_id, '0' AS status, CURRENT_TIMESTAMP AS create_time FROM DUAL) s ON (t.user_id = s.user_id) WHEN NOT MATCHED THEN INSERT (user_id, username, password, nickname, dept_id, status, create_time) VALUES (s.user_id, s.username, s.password, s.nickname, s.dept_id, s.status, s.create_time);
+MERGE INTO sys_user t USING (SELECT 3 AS user_id, 'lisi' AS username, 'PENDING_INITIAL_PASSWORD' AS password, '李四' AS nickname, 102 AS dept_id, '0' AS status, '1' AS must_change_pwd, CURRENT_TIMESTAMP AS create_time FROM DUAL) s ON (t.user_id = s.user_id) WHEN NOT MATCHED THEN INSERT (user_id, username, password, nickname, dept_id, status, must_change_pwd, create_time) VALUES (s.user_id, s.username, s.password, s.nickname, s.dept_id, s.status, s.must_change_pwd, s.create_time);
 
 SET IDENTITY_INSERT sys_user OFF;
 

@@ -143,10 +143,11 @@ mysql -uroot -p oa_system < E:\api\oa-system\sql\oa_init.sql
 - **CORS_ALLOWED_ORIGINS**：允许跨域的前端域名，多个域名用英文逗号分隔；默认仅允许本地 `http://localhost:18081`。
 - **TRUST_FORWARDED_HEADERS**：部署在可信反向代理后时设为 `true`，登录限流将使用 `X-Forwarded-For` 的首个地址；直连部署保持 `false`。
 - **PUBLIC_API_DOCS**：是否匿名开放 Swagger，默认 `false`，生产环境保持关闭。
+- **OA_INIT_<用户名大写>_PASSWORD**：初始账号的首次登录口令，例如 `OA_INIT_ADMIN_PASSWORD`、`OA_INIT_ZHANGSAN_PASSWORD`、`OA_INIT_LISI_PASSWORD`。未配置时应用会生成一次性随机密码，只在启动日志里输出一次。
 - **注册接口**：`/register` 已要求 `system:user:add` 权限，不再匿名开放。
 - **登录保护**：单用户连续失败 5 次锁定 15 分钟，错误提示统一为“用户名或密码错误”。
 - **文件安全**：上传目录不再通过 `/profile/**` 静态暴露，附件只能通过鉴权下载接口访问，并限制允许的文件扩展名。
-- **默认账号**：`admin/admin123`、`zhangsan/admin123`、`lisi/admin123` 仅用于演示，上线前请修改密码或禁用。
+- **初始账号**：仓库不再内置任何可用口令，`admin`、`zhangsan`、`lisi` 的密码由首次启动时初始化，且强制首次登录修改。
 
 ## 启动后端
 
@@ -154,6 +155,7 @@ mysql -uroot -p oa_system < E:\api\oa-system\sql\oa_init.sql
 cd E:\api\oa-system
 $env:JWT_SECRET = "replace-with-at-least-32-random-bytes"
 $env:DB_PASSWORD = "your-database-password"
+$env:OA_INIT_ADMIN_PASSWORD = "your-initial-admin-password"
 mvn clean package
 java -jar .\ruoyi-admin\target\ruoyi-admin-1.0.0.jar
 ```
@@ -179,12 +181,31 @@ npm run build:prod
 
 构建产物位于 `ruoyi-ui\dist`。
 
-## 默认账号
+## 初始账号与密码
 
-- 用户名：`admin`
-- 密码：`admin123`
+仓库中不再内置任何可用口令。数据库脚本把 `admin`、`zhangsan`、`lisi` 的 `password` 写成占位符
+`PENDING_INITIAL_PASSWORD`（不是合法的 BCrypt 串，任何密码都无法匹配），并置 `must_change_pwd = '1'`。
 
-另外提供测试账号 `zhangsan`、`lisi`，密码同为 `admin123`。
+应用首次启动时由 `InitialAccountInitializer` 完成初始化：
+
+1. 优先读取环境变量 `OA_INIT_<用户名大写>_PASSWORD`，例如 `OA_INIT_ADMIN_PASSWORD`；
+2. 未配置时生成 16 位一次性随机密码，**只在本次启动日志里以 WARN 输出一次**，请及时保存；
+3. 无论口令来源如何，账号都被标记为首次登录必须修改密码，登录后前端会弹出不可关闭的改密框；
+4. 口令需满足强度策略：8-64 位且同时包含字母与数字，否则回退为随机密码。
+
+自助改密接口为 `PUT /system/user/profile/updatePwd`（请求体 `{"oldPassword":"...","newPassword":"..."}`），
+任何已登录用户都可调用，不需要 `system:user:*` 权限。
+
+从旧版本升级时，`DatabaseMigrationRunner` 会补上 `must_change_pwd` 列，并把仍在使用内置演示口令
+`admin123` 的账号标记为首次登录必须改密。
+
+集成测试脚本不再硬编码密码，需要显式传入：
+
+```powershell
+$env:OA_INIT_ADMIN_PASSWORD = "启动日志里的一次性密码"
+$env:OA_INIT_ZHANGSAN_PASSWORD = "..."
+.\tests\phase1-smoke.ps1
+```
 
 ## 项目结构
 

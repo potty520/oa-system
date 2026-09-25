@@ -16,6 +16,9 @@ const mutations = {
   },
   SET_PERMISSIONS: (state, permissions) => {
     state.permissions = permissions
+  },
+  SET_MUST_CHANGE_PWD: (state, mustChangePwd) => {
+    state.userInfo = { ...state.userInfo, mustChangePwd: mustChangePwd }
   }
 }
 

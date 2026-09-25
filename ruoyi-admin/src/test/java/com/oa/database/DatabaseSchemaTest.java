@@ -54,7 +54,7 @@ class DatabaseSchemaTest {
             dataSource.setUrl("jdbc:sqlite:" + database.toAbsolutePath().toString().replace('\\', '/') +
                     "?date_class=text&date_string_format=yyyy-MM-dd HH:mm:ss");
             initialize(dataSource, "db/sqlite/schema.sql");
-            assertEquals(3, new JdbcTemplate(dataSource).queryForObject("select count(*) from sys_user", Integer.class));
+            assertSeededAccounts(new JdbcTemplate(dataSource));
         } finally {
             Files.deleteIfExists(database);
         }
@@ -66,7 +66,17 @@ class DatabaseSchemaTest {
         dataSource.setUrl("jdbc:h2:mem:" + databaseName + ";" + mode + ";DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1");
         dataSource.setUsername("sa");
         initialize(dataSource, schemaLocation);
-        assertEquals(3, new JdbcTemplate(dataSource).queryForObject("select count(*) from sys_user", Integer.class));
+        assertSeededAccounts(new JdbcTemplate(dataSource));
+    }
+
+    /** 初始化脚本不得内置任何可用口令：账号一律是占位口令 + 首次登录必须改密。 */
+    private void assertSeededAccounts(JdbcTemplate jdbc) {
+        assertEquals(3, jdbc.queryForObject("select count(*) from sys_user", Integer.class));
+        assertEquals(3, jdbc.queryForObject(
+                "select count(*) from sys_user where password = 'PENDING_INITIAL_PASSWORD' and must_change_pwd = '1'",
+                Integer.class));
+        assertEquals(0, jdbc.queryForObject(
+                "select count(*) from sys_user where password like '$2%'", Integer.class));
     }
 
     private void initialize(DataSource dataSource, String schemaLocation) {

@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
   sex CHAR(1) DEFAULT '0',
   dept_id BIGINT,
   status CHAR(1) DEFAULT '0',
+  must_change_pwd CHAR(1) DEFAULT '0',
   login_ip VARCHAR(128) DEFAULT '',
   login_date TIMESTAMP,
   create_by VARCHAR(64) DEFAULT '',
@@ -569,10 +570,10 @@ INSERT INTO sys_dept (dept_id, parent_id, ancestors, dept_name, order_num, leade
 (103, 100, '0,100', '技术部', 3, '王五', '13800000003', 'tech@example.com', '0')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, create_time) VALUES
-(1, 'admin', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '超级管理员', 100, '0', CURRENT_TIMESTAMP),
-(2, 'zhangsan', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '张三', 103, '0', CURRENT_TIMESTAMP),
-(3, 'lisi', '$2a$10$7JB720yubVSZvUI0rEqK/.VqGOZTH.ulu33dHOiBE8ByOhJIrdAu2', '李四', 102, '0', CURRENT_TIMESTAMP)
+INSERT INTO sys_user (user_id, username, password, nickname, dept_id, status, must_change_pwd, create_time) VALUES
+(1, 'admin', 'PENDING_INITIAL_PASSWORD', '超级管理员', 100, '0', '1', CURRENT_TIMESTAMP),
+(2, 'zhangsan', 'PENDING_INITIAL_PASSWORD', '张三', 103, '0', '1', CURRENT_TIMESTAMP),
+(3, 'lisi', 'PENDING_INITIAL_PASSWORD', '李四', 102, '0', '1', CURRENT_TIMESTAMP)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_role (role_id, role_name, role_key, role_sort, data_scope, status) VALUES
