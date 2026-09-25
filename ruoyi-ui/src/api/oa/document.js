@@ -12,6 +12,8 @@ export function remove(id) {
   return request({ url: `/oa/document/${id}`, method: 'delete' })
 }
 
-export function downloadUrl(id) {
-  return `${process.env.VUE_APP_BASE_API}/oa/document/download/${id}`
+// 附件下载必须走 axios：后端只从 Authorization 头取令牌，
+// 直接 window.location 导航不会携带该头，会被判成未登录
+export function download(id) {
+  return request({ url: `/oa/document/download/${id}`, method: 'get', responseType: 'blob' })
 }

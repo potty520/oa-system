@@ -6,5 +6,5 @@ export default {
   device: state => state.app.device,
   visitedViews: state => state.tagsView.visitedViews,
   cachedViews: state => state.tagsView.cachedViews,
-  addRouters: state => state.permission.addRouters
+  routes: state => state.permission.routes
 }

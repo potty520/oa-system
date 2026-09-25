@@ -19,7 +19,7 @@
       <el-table-column label="申请时间" prop="applyTime" width="160" align="center" />
       <el-table-column label="操作" width="160" align="center">
         <template slot-scope="scope">
-          <el-button v-if="scope.row.status === '0' && isActionable(scope.row.todoType)" size="mini" type="text" icon="el-icon-check" @click="handleComplete(scope.row)">完成</el-button>
+          <el-button v-if="scope.row.status === '0' && isActionable(scope.row.todoType)" v-hasPermi="['oa:todo:complete']" size="mini" type="text" icon="el-icon-check" @click="handleComplete(scope.row)">完成</el-button>
           <span v-else-if="scope.row.status === '0'" class="todo-hint">请到对应审批页处理</span>
         </template>
       </el-table-column>

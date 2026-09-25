@@ -6,7 +6,7 @@
       <el-form-item label="状态" prop="status"><el-select v-model="queryParams.status" clearable><el-option label="启用" value="0" /><el-option label="停用" value="1" /></el-select></el-form-item>
       <el-form-item><el-button type="primary" icon="el-icon-search" @click="handleQuery">搜索</el-button><el-button icon="el-icon-refresh" @click="resetQuery">重置</el-button></el-form-item>
     </el-form>
-    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button></el-col></el-row>
+    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button v-hasPermi="['oa:docFlow:add']" type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button></el-col></el-row>
     <el-table v-loading="loading" :data="tableData" border>
       <el-table-column label="流程名称" prop="flowName" min-width="160" />
       <el-table-column label="流程类型" prop="flowType" width="100" align="center"><template slot-scope="scope">{{ scope.row.flowType === '1' ? '收文' : '发文' }}</template></el-table-column>
@@ -14,7 +14,7 @@
       <el-table-column label="状态" prop="status" width="90" align="center"><template slot-scope="scope"><el-tag :type="scope.row.status === '0' ? 'success' : 'info'">{{ scope.row.status === '0' ? '启用' : '停用' }}</el-tag></template></el-table-column>
       <el-table-column label="创建时间" prop="createTime" width="160" align="center" />
       <el-table-column label="操作" width="180" align="center">
-        <template slot-scope="scope"><el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">查看</el-button><el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button><el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button></template>
+        <template slot-scope="scope"><el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">查看</el-button><el-button v-hasPermi="['oa:docFlow:edit']" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button><el-button v-hasPermi="['oa:docFlow:remove']" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button></template>
       </el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />

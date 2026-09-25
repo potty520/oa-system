@@ -26,7 +26,7 @@
 
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
-        <el-button type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
+        <el-button v-hasPermi="['oa:reimbursement:add']" type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
       </el-col>
     </el-row>
 
@@ -50,11 +50,11 @@
       <el-table-column label="申请时间" prop="applyTime" width="160" align="center" />
       <el-table-column label="操作" min-width="280" align="center">
         <template slot-scope="scope">
-          <el-button v-if="scope.row.approvalStatus === '0'" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
-          <el-button v-if="scope.row.approvalStatus === '0'" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
-          <el-button v-if="scope.row.approvalStatus === '0'" size="mini" type="text" icon="el-icon-s-promotion" @click="handleSubmit(scope.row)">提交</el-button>
-          <el-button v-if="scope.row.approvalStatus === '1'" size="mini" type="text" icon="el-icon-refresh-left" @click="handleWithdraw(scope.row)">撤回</el-button>
-          <el-button v-if="scope.row.approvalStatus === '1'" size="mini" type="text" icon="el-icon-check" @click="handleApprove(scope.row)">审批</el-button>
+          <el-button v-if="scope.row.approvalStatus === '0'" v-hasPermi="['oa:reimbursement:edit']" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
+          <el-button v-if="scope.row.approvalStatus === '0'" v-hasPermi="['oa:reimbursement:remove']" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
+          <el-button v-if="scope.row.approvalStatus === '0'" v-hasPermi="['oa:reimbursement:submit']" size="mini" type="text" icon="el-icon-s-promotion" @click="handleSubmit(scope.row)">提交</el-button>
+          <el-button v-if="scope.row.approvalStatus === '1'" v-hasPermi="['oa:reimbursement:withdraw']" size="mini" type="text" icon="el-icon-refresh-left" @click="handleWithdraw(scope.row)">撤回</el-button>
+          <el-button v-if="scope.row.approvalStatus === '1'" v-hasPermi="['oa:reimbursement:approve']" size="mini" type="text" icon="el-icon-check" @click="handleApprove(scope.row)">审批</el-button>
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">详情</el-button>
         </template>
       </el-table-column>

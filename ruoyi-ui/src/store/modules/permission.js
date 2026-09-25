@@ -1,56 +1,14 @@
 import { constantRoutes } from '@/router'
 
+/**
+ * 路由表完全由 constantRoutes 静态声明，能否看到/操作由后端接口鉴权 + 前端 v-hasPermi 控制。
+ * 这里只保留 Sidebar 需要的路由快照，不再提供从未被调用的动态路由生成逻辑。
+ */
 const state = {
-  routes: constantRoutes,
-  addRoutes: []
-}
-
-const mutations = {
-  SET_ROUTES: (state, routes) => {
-    state.addRoutes = routes
-    state.routes = constantRoutes.concat(routes)
-  }
-}
-
-function hasPermission(roles, route) {
-  if (route.meta && route.meta.roles) {
-    return roles.some(role => route.meta.roles.includes(role))
-  }
-  return true
-}
-
-function filterAsyncRoutes(routes, roles) {
-  const res = []
-  routes.forEach(route => {
-    const tmp = { ...route }
-    if (hasPermission(roles, tmp)) {
-      if (tmp.children) {
-        tmp.children = filterAsyncRoutes(tmp.children, roles)
-      }
-      res.push(tmp)
-    }
-  })
-  return res
-}
-
-const actions = {
-  GenerateRoutes({ commit }, roles) {
-    return new Promise(resolve => {
-      let accessedRoutes
-      if (roles.includes('admin')) {
-        accessedRoutes = constantRoutes || []
-      } else {
-        accessedRoutes = filterAsyncRoutes(constantRoutes, roles)
-      }
-      commit('SET_ROUTES', accessedRoutes)
-      resolve(accessedRoutes)
-    })
-  }
+  routes: constantRoutes
 }
 
 export default {
   namespaced: true,
-  state,
-  mutations,
-  actions
+  state
 }

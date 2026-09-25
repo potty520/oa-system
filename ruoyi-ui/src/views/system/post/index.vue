@@ -5,13 +5,13 @@
       <el-form-item label="岗位名称"><el-input v-model="queryParams.postName" clearable @keyup.enter.native="getList" /></el-form-item>
       <el-form-item><el-button type="primary" @click="getList">搜索</el-button><el-button @click="resetQuery">重置</el-button></el-form-item>
     </el-form>
-    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button></el-col></el-row>
+    <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button v-hasPermi="['system:post:add']" type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button></el-col></el-row>
     <el-table v-loading="loading" :data="tableData" border>
       <el-table-column label="岗位编码" prop="postCode" width="160" />
       <el-table-column label="岗位名称" prop="postName" />
       <el-table-column label="排序" prop="postSort" width="90" align="center" />
       <el-table-column label="状态" prop="status" width="90" align="center"><template slot-scope="scope">{{ scope.row.status === '0' ? '正常' : '停用' }}</template></el-table-column>
-      <el-table-column label="操作" width="160" align="center"><template slot-scope="scope"><el-button size="mini" type="text" @click="handleUpdate(scope.row)">编辑</el-button><el-button size="mini" type="text" @click="handleDelete(scope.row)">删除</el-button></template></el-table-column>
+      <el-table-column label="操作" width="160" align="center"><template slot-scope="scope"><el-button v-hasPermi="['system:post:edit']" size="mini" type="text" @click="handleUpdate(scope.row)">编辑</el-button><el-button v-hasPermi="['system:post:remove']" size="mini" type="text" @click="handleDelete(scope.row)">删除</el-button></template></el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />
     <el-dialog :title="title" :visible.sync="visible" width="520px" append-to-body>

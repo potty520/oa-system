@@ -39,20 +39,20 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="公文类型" name="type">
-        <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button type="primary" plain icon="el-icon-plus" @click="openTypeDialog()">新增类型</el-button></el-col></el-row>
+      <el-tab-pane v-if="canManageDocType" label="公文类型" name="type">
+        <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button v-hasPermi="['oa:docType:add']" type="primary" plain icon="el-icon-plus" @click="openTypeDialog()">新增类型</el-button></el-col></el-row>
         <el-table v-loading="loading" :data="typeList" border>
           <el-table-column label="类型名称" prop="typeName" />
           <el-table-column label="类型编码" prop="typeCode" width="160" />
           <el-table-column label="排序" prop="sortOrder" width="90" align="center" />
           <el-table-column label="状态" prop="status" width="90" align="center"><template slot-scope="scope">{{ scope.row.status === '0' ? '启用' : '停用' }}</template></el-table-column>
           <el-table-column label="操作" width="160" align="center">
-            <template slot-scope="scope"><el-button size="mini" type="text" @click="openTypeDialog(scope.row)">编辑</el-button><el-button size="mini" type="text" @click="deleteType(scope.row)">删除</el-button></template>
+            <template slot-scope="scope"><el-button v-hasPermi="['oa:docType:edit']" size="mini" type="text" @click="openTypeDialog(scope.row)">编辑</el-button><el-button v-hasPermi="['oa:docType:remove']" size="mini" type="text" @click="deleteType(scope.row)">删除</el-button></template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
-      <el-tab-pane label="模板与套红" name="template">
-        <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button type="primary" plain icon="el-icon-plus" @click="openTemplateDialog()">新增模板</el-button></el-col></el-row>
+      <el-tab-pane v-if="canManageTemplate" label="模板与套红" name="template">
+        <el-row :gutter="10" class="mb8"><el-col :span="1.5"><el-button v-hasPermi="['oa:docTemplate:add']" type="primary" plain icon="el-icon-plus" @click="openTemplateDialog()">新增模板</el-button></el-col></el-row>
         <el-table v-loading="loading" :data="templateList" border>
           <el-table-column label="模板名称" prop="templateName" />
           <el-table-column label="公文类型" prop="docTypeId" width="120" align="center"><template slot-scope="scope">{{ docTypeLabel(scope.row.docTypeId) }}</template></el-table-column>
@@ -60,11 +60,11 @@
           <el-table-column label="红头文字" prop="redHeaderText" min-width="180" />
           <el-table-column label="标题字号" prop="titleSize" width="90" align="center" />
           <el-table-column label="状态" prop="status" width="90" align="center"><template slot-scope="scope">{{ scope.row.status === '0' ? '启用' : '停用' }}</template></el-table-column>
-          <el-table-column label="操作" width="180" align="center"><template slot-scope="scope"><el-button size="mini" type="text" @click="previewTemplate(scope.row)">套红预览</el-button><el-button size="mini" type="text" @click="openTemplateDialog(scope.row)">编辑</el-button><el-button size="mini" type="text" @click="deleteTemplate(scope.row)">删除</el-button></template></el-table-column>
+          <el-table-column label="操作" width="180" align="center"><template slot-scope="scope"><el-button size="mini" type="text" @click="previewTemplate(scope.row)">套红预览</el-button><el-button v-hasPermi="['oa:docTemplate:edit']" size="mini" type="text" @click="openTemplateDialog(scope.row)">编辑</el-button><el-button v-hasPermi="['oa:docTemplate:remove']" size="mini" type="text" @click="deleteTemplate(scope.row)">删除</el-button></template></el-table-column>
         </el-table>
       </el-tab-pane>
-      <el-tab-pane label="附件管理" name="document">
-        <el-upload :http-request="uploadDocument" :show-file-list="false" action="#">
+      <el-tab-pane v-if="canManageDocument" label="附件管理" name="document">
+        <el-upload v-hasPermi="['oa:document:upload']" :http-request="uploadDocument" :show-file-list="false" action="#">
           <el-button type="primary" icon="el-icon-upload2">上传附件</el-button>
         </el-upload>
         <el-table v-loading="loading" :data="documentList" border style="margin-top:12px">
@@ -73,7 +73,7 @@
           <el-table-column label="大小" width="110" align="right"><template slot-scope="scope">{{ formatSize(scope.row.fileSize) }}</template></el-table-column>
           <el-table-column label="上传人" prop="userName" width="110" />
           <el-table-column label="上传时间" prop="createTime" width="170" align="center" />
-          <el-table-column label="操作" width="160" align="center"><template slot-scope="scope"><el-button size="mini" type="text" @click="downloadDocument(scope.row)">下载</el-button><el-button size="mini" type="text" @click="deleteDocument(scope.row)">删除</el-button></template></el-table-column>
+          <el-table-column label="操作" width="160" align="center"><template slot-scope="scope"><el-button v-hasPermi="['oa:document:query']" size="mini" type="text" @click="downloadDocument(scope.row)">下载</el-button><el-button v-hasPermi="['oa:document:remove']" size="mini" type="text" @click="deleteDocument(scope.row)">删除</el-button></template></el-table-column>
         </el-table>
       </el-tab-pane>
 
@@ -117,7 +117,8 @@
 
 <script>
 import { myCirculation, markRead, myDone, archiveList, docTypeList, addDocType, editDocType, removeDocType, docTemplateList, addDocTemplate, editDocTemplate, removeDocTemplate } from '@/api/oa/docProcess'
-import { list as documentListApi, upload as uploadDocumentApi, remove as removeDocumentApi, downloadUrl } from '@/api/oa/document'
+import { list as documentListApi, upload as uploadDocumentApi, remove as removeDocumentApi, download as downloadDocumentApi } from '@/api/oa/document'
+import { checkPermi } from '@/utils/permission'
 
 export default {
   name: 'DocCenter',
@@ -143,21 +144,25 @@ export default {
   },
   computed: {
     // 归档台账是全单位的公文清单，后端只开放给收发文管理岗，普通用户不展示该页签
-    canManageArchive() { return this.hasPermi('oa:incomingDoc:list') || this.hasPermi('oa:outgoingDoc:list') }
+    canManageArchive() { return checkPermi(['oa:incomingDoc:list', 'oa:outgoingDoc:list']) },
+    // 下面三个页签同理：没有列表权限就不渲染，否则 loadAll 会拉回一串 403 提示
+    canManageDocType() { return checkPermi('oa:docType:list') },
+    canManageTemplate() { return checkPermi('oa:docTemplate:list') },
+    canManageDocument() { return checkPermi('oa:document:list') }
   },
   created() { this.loadAll() },
   methods: {
-    hasPermi(permission) { const permissions = this.$store.getters.permissions || []; const user = this.$store.getters.userInfo || {}; return user.userId === 1 || permissions.includes('*:*:*') || permissions.includes(permission) },
     loadAll() {
       this.loading = true
-      const archives = this.canManageArchive ? archiveList({ pageNum: 1, pageSize: 100 }) : Promise.resolve({ rows: [] })
+      const emptyRows = Promise.resolve({ rows: [] })
+      const emptyData = Promise.resolve({ data: [] })
       Promise.all([
         myCirculation(),
         myDone(),
-        archives,
-        docTypeList({}),
-        docTemplateList({}),
-        documentListApi({ pageNum: 1, pageSize: 100 })
+        this.canManageArchive ? archiveList({ pageNum: 1, pageSize: 100 }) : emptyRows,
+        this.canManageDocType ? docTypeList({}) : emptyData,
+        this.canManageTemplate ? docTemplateList({}) : emptyData,
+        this.canManageDocument ? documentListApi({ pageNum: 1, pageSize: 100 }) : emptyRows
       ]).then(([circulation, done, archives, types, templates, documents]) => {
         this.circulationList = circulation.data || []
         this.doneList = done.data || []
@@ -174,7 +179,18 @@ export default {
     submitTemplate() { this.$refs.templateForm.validate(valid => { if (!valid) return; const request = this.templateForm.templateId ? editDocTemplate(this.templateForm) : addDocTemplate(this.templateForm); request.then(() => { this.$message.success('保存成功'); this.templateDialogVisible = false; this.loadAll() }) }) },
     deleteTemplate(row) { this.$confirm('确认删除该模板吗？', '提示', { type: 'warning' }).then(() => removeDocTemplate(row.templateId)).then(() => { this.$message.success('删除成功'); this.loadAll() }).catch(() => {}) },
     uploadDocument(request) { const data = new FormData(); data.append('file', request.file); uploadDocumentApi(data).then(() => { this.$message.success('上传成功'); this.loadAll() }).catch(() => request.onError()) },
-    downloadDocument(row) { window.location.href = downloadUrl(row.documentId) },
+    downloadDocument(row) {
+      downloadDocumentApi(row.documentId).then(blob => {
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = row.documentName || ('document-' + row.documentId)
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      })
+    },
     deleteDocument(row) { this.$confirm('确认删除该附件吗？', '提示', { type: 'warning' }).then(() => removeDocumentApi(row.documentId)).then(() => { this.$message.success('删除成功'); this.loadAll() }).catch(() => {}) },
     formatSize(size) { if (!size) return '0 B'; if (size < 1024) return size + ' B'; if (size < 1048576) return (size / 1024).toFixed(1) + ' KB'; return (size / 1048576).toFixed(1) + ' MB' },
     handleRead(row) { markRead(row.circulationId).then(() => { this.$message.success('已标记为已读'); this.loadAll() }) },

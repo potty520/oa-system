@@ -23,10 +23,10 @@
     <!-- 工具栏 -->
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
-        <el-button type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
+        <el-button v-hasPermi="['system:user:add']" type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button type="danger" plain icon="el-icon-delete" :disabled="multiple" @click="handleDelete">删除</el-button>
+        <el-button v-hasPermi="['system:user:remove']" type="danger" plain icon="el-icon-delete" :disabled="multiple" @click="handleDelete">删除</el-button>
       </el-col>
     </el-row>
 
@@ -44,6 +44,7 @@
             v-model="scope.row.status"
             active-value="0"
             inactive-value="1"
+            :disabled="!canEditStatus"
             @change="handleStatusChange(scope.row)"
           />
         </template>
@@ -51,9 +52,9 @@
       <el-table-column label="创建时间" prop="createTime" width="160" align="center" />
       <el-table-column label="操作" min-width="200" align="center">
         <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">修改</el-button>
-          <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
-          <el-button size="mini" type="text" icon="el-icon-key" @click="handleCommand('resetPwd', scope.row)">重置密码</el-button>
+          <el-button v-hasPermi="['system:user:edit']" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">修改</el-button>
+          <el-button v-hasPermi="['system:user:remove']" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
+          <el-button v-hasPermi="['system:user:resetPwd']" size="mini" type="text" icon="el-icon-key" @click="handleCommand('resetPwd', scope.row)">重置密码</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -153,11 +154,16 @@
 
 <script>
 import request from '@/utils/request'
+import { checkPermi } from '@/utils/permission'
 import Treeselect from '@riophae/vue-treeselect'
 import '@riophae/vue-treeselect/dist/vue-treeselect.css'
 
 export default {
   components: { Treeselect },
+  computed: {
+    // 没有修改权限时只展示状态，不允许拨动开关
+    canEditStatus() { return checkPermi('system:user:edit') }
+  },
   name: 'User',
   data() {
     return {

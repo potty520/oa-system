@@ -51,16 +51,16 @@ const actions = {
   },
 
   Logout({ commit }) {
-    return new Promise((resolve, reject) => {
-      logout().then(() => {
-        commit('SET_TOKEN', '')
-        commit('SET_USER_INFO', {})
-        commit('SET_PERMISSIONS', [])
-        removeToken()
-        resolve()
-      }).catch(error => {
-        reject(error)
-      })
+    const clearLocalSession = () => {
+      commit('SET_TOKEN', '')
+      commit('SET_USER_INFO', {})
+      commit('SET_PERMISSIONS', [])
+      removeToken()
+    }
+    // 服务端注销失败（网络抖动 / 令牌已过期）也必须清理本地会话，
+    // 否则调用方的 then 永远不会执行，用户会被卡在“已登录”状态里
+    return logout().catch(() => null).then(() => {
+      clearLocalSession()
     })
   },
 

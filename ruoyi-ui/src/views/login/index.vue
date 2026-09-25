@@ -98,13 +98,22 @@ export default {
   methods: {
     getCookie() {
       const username = Cookies.get('username')
-      const password = Cookies.get('password')
       const rememberMe = Cookies.get('rememberMe')
+      // 早期版本曾把明文口令存进 Cookie，这里主动清掉残留
+      Cookies.remove('password')
       this.loginForm = {
         username: username === undefined ? '' : username,
-        password: password === undefined ? '' : password,
+        password: '',
         rememberMe: rememberMe === undefined ? false : Boolean(rememberMe)
       }
+    },
+    safeRedirect() {
+      const target = this.redirect
+      // 只接受站内绝对路径，拒绝 //host 与 /\\host 这类协议相对地址，避免开放重定向
+      if (typeof target === 'string' && /^\/(?![/\\])/.test(target)) {
+        return target
+      }
+      return '/'
     },
     showPwd() {
       if (this.passwordType === 'password') {
@@ -120,19 +129,18 @@ export default {
       this.$refs.loginForm.validate(valid => {
         if (valid) {
           this.loading = true
+          // “记住我”只记用户名：口令落 Cookie 等于把凭据交给任何能读到浏览器存储的一方
           if (this.loginForm.rememberMe) {
-            Cookies.set('username', this.loginForm.username, { expires: 30 })
-            Cookies.set('password', this.loginForm.password, { expires: 30 })
-            Cookies.set('rememberMe', this.loginForm.rememberMe, { expires: 30 })
+            Cookies.set('username', this.loginForm.username, { expires: 30, sameSite: 'Lax' })
+            Cookies.set('rememberMe', true, { expires: 30, sameSite: 'Lax' })
           } else {
             Cookies.remove('username')
-            Cookies.remove('password')
             Cookies.remove('rememberMe')
           }
           this.$store
             .dispatch('user/Login', this.loginForm)
             .then(() => {
-              this.$router.push({ path: this.redirect || '/' })
+              this.$router.push(this.safeRedirect())
               this.loading = false
             })
             .catch(() => {

@@ -23,10 +23,10 @@
     <!-- 工具栏 -->
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
-        <el-button type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
+        <el-button v-hasPermi="['system:role:add']" type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
       </el-col>
       <el-col :span="1.5">
-        <el-button type="danger" plain icon="el-icon-delete" :disabled="multiple" @click="handleDelete">删除</el-button>
+        <el-button v-hasPermi="['system:role:remove']" type="danger" plain icon="el-icon-delete" :disabled="multiple" @click="handleDelete">删除</el-button>
       </el-col>
     </el-row>
 
@@ -43,6 +43,7 @@
             v-model="scope.row.status"
             active-value="0"
             inactive-value="1"
+            :disabled="!canEditStatus"
             @change="handleStatusChange(scope.row)"
           />
         </template>
@@ -50,8 +51,8 @@
       <el-table-column label="创建时间" prop="createTime" width="160" align="center" />
       <el-table-column label="操作" min-width="160" align="center">
         <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">修改</el-button>
-          <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
+          <el-button v-hasPermi="['system:role:edit']" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">修改</el-button>
+          <el-button v-hasPermi="['system:role:remove']" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -126,8 +127,12 @@
 
 <script>
 import request from '@/utils/request'
+import { checkPermi } from '@/utils/permission'
 
 export default {
+  computed: {
+    canEditStatus() { return checkPermi('system:role:edit') }
+  },
   name: 'Role',
   data() {
     return {

@@ -20,7 +20,7 @@
     <!-- 工具栏 -->
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
-        <el-button type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
+        <el-button v-hasPermi="['system:dept:add']" type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
       </el-col>
       <el-col :span="1.5">
         <el-button type="info" plain icon="el-icon-sort" @click="toggleExpandAll">展开/折叠</el-button>
@@ -47,15 +47,16 @@
             v-model="scope.row.status"
             active-value="0"
             inactive-value="1"
+            :disabled="!canEditStatus"
             @change="handleStatusChange(scope.row)"
           />
         </template>
       </el-table-column>
       <el-table-column label="操作" min-width="180" align="center">
         <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">修改</el-button>
-          <el-button size="mini" type="text" icon="el-icon-plus" @click="handleAdd(scope.row)">新增</el-button>
-          <el-button v-if="scope.row.parentId !== 0" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
+          <el-button v-hasPermi="['system:dept:edit']" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">修改</el-button>
+          <el-button v-hasPermi="['system:dept:add']" size="mini" type="text" icon="el-icon-plus" @click="handleAdd(scope.row)">新增</el-button>
+          <el-button v-if="scope.row.parentId !== 0" v-hasPermi="['system:dept:remove']" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -98,12 +99,16 @@
 
 <script>
 import request from '@/utils/request'
+import { checkPermi } from '@/utils/permission'
 import Treeselect from '@riophae/vue-treeselect'
 import '@riophae/vue-treeselect/dist/vue-treeselect.css'
 
 export default {
   name: 'Dept',
   components: { Treeselect },
+  computed: {
+    canEditStatus() { return checkPermi('system:dept:edit') }
+  },
   data() {
     return {
       loading: false,

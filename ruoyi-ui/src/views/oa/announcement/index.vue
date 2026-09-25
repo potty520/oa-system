@@ -26,7 +26,7 @@
     <!-- 工具栏 -->
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
-        <el-button type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
+        <el-button v-hasPermi="['oa:announcement:add']" type="primary" plain icon="el-icon-plus" @click="handleAdd">新增</el-button>
       </el-col>
     </el-row>
 
@@ -60,8 +60,8 @@
       <el-table-column label="创建时间" prop="createTime" width="160" align="center" />
       <el-table-column label="操作" width="180" align="center">
         <template slot-scope="scope">
-          <el-button size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
-          <el-button size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
+          <el-button v-hasPermi="['oa:announcement:edit']" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
+          <el-button v-hasPermi="['oa:announcement:remove']" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
