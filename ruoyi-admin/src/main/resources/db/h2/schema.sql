@@ -610,7 +610,17 @@ MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, 
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (13, '公告删除', 10, 3, '', NULL, 'F', '0', '0', 'oa:announcement:remove', '#');
 
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (14, '公告查询', 10, 4, '', NULL, 'F', '0', '0', 'oa:announcement:query', '#');
+
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (20, '日程管理', 1, 2, 'schedule', 'oa/schedule/index', 'C', '0', '0', 'oa:schedule:list', 'date');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (21, '日程查询', 20, 1, '', NULL, 'F', '0', '0', 'oa:schedule:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (22, '日程新增', 20, 2, '', NULL, 'F', '0', '0', 'oa:schedule:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (23, '日程修改', 20, 3, '', NULL, 'F', '0', '0', 'oa:schedule:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (24, '日程删除', 20, 4, '', NULL, 'F', '0', '0', 'oa:schedule:remove', '#');
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (30, '请假管理', 1, 3, 'leave', 'oa/leave/index', 'C', '0', '0', 'oa:leave:list', 'tree-table');
 
@@ -618,7 +628,31 @@ MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, 
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (32, '请假审批', 30, 2, '', NULL, 'F', '0', '0', 'oa:leave:approve', '#');
 
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (33, '请假查询', 30, 3, '', NULL, 'F', '0', '0', 'oa:leave:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (34, '请假修改', 30, 4, '', NULL, 'F', '0', '0', 'oa:leave:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (35, '请假删除', 30, 5, '', NULL, 'F', '0', '0', 'oa:leave:remove', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (36, '请假送审', 30, 6, '', NULL, 'F', '0', '0', 'oa:leave:submit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (37, '请假撤回', 30, 7, '', NULL, 'F', '0', '0', 'oa:leave:withdraw', '#');
+
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (40, '报销管理', 1, 4, 'reimbursement', 'oa/reimbursement/index', 'C', '0', '0', 'oa:reimbursement:list', 'money');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (41, '报销查询', 40, 1, '', NULL, 'F', '0', '0', 'oa:reimbursement:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (42, '报销新增', 40, 2, '', NULL, 'F', '0', '0', 'oa:reimbursement:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (43, '报销修改', 40, 3, '', NULL, 'F', '0', '0', 'oa:reimbursement:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (44, '报销删除', 40, 4, '', NULL, 'F', '0', '0', 'oa:reimbursement:remove', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (45, '报销送审', 40, 5, '', NULL, 'F', '0', '0', 'oa:reimbursement:submit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (46, '报销撤回', 40, 6, '', NULL, 'F', '0', '0', 'oa:reimbursement:withdraw', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (47, '报销审批', 40, 7, '', NULL, 'F', '0', '0', 'oa:reimbursement:approve', '#');
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (50, '收文管理', 1, 5, 'incoming-doc', 'oa/incoming-doc/index', 'C', '0', '0', 'oa:incomingDoc:list', 'log');
 
@@ -642,7 +676,17 @@ MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, 
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (70, '流程配置', 1, 7, 'doc-flow', 'oa/doc-flow/index', 'C', '0', '0', 'oa:docFlow:list', 'guide');
 
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (71, '流程查询', 70, 1, '', NULL, 'F', '0', '0', 'oa:docFlow:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (72, '流程新增', 70, 2, '', NULL, 'F', '0', '0', 'oa:docFlow:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (73, '流程修改', 70, 3, '', NULL, 'F', '0', '0', 'oa:docFlow:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (74, '流程删除', 70, 4, '', NULL, 'F', '0', '0', 'oa:docFlow:remove', '#');
+
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (80, '我的待办', 1, 8, 'todo', 'oa/todo/index', 'C', '0', '0', 'oa:todo:list', 'dashboard');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (81, '待办办理', 80, 1, '', NULL, 'F', '0', '0', 'oa:todo:complete', '#');
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (90, '公文中心', 1, 9, 'doc-center', 'oa/doc-center/index', 'C', '0', '0', 'oa:doc:list', 'document');
 
@@ -658,11 +702,71 @@ MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, 
 
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (96, '附件删除', 90, 6, '', NULL, 'F', '0', '0', 'oa:document:remove', '#');
 
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (200, '公文类型查询', 90, 7, '', NULL, 'F', '0', '0', 'oa:docType:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (201, '公文类型新增', 90, 8, '', NULL, 'F', '0', '0', 'oa:docType:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (202, '公文类型修改', 90, 9, '', NULL, 'F', '0', '0', 'oa:docType:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (203, '公文类型删除', 90, 10, '', NULL, 'F', '0', '0', 'oa:docType:remove', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (210, '公文模板查看', 90, 11, '', NULL, 'F', '0', '0', 'oa:docTemplate:list', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (211, '公文模板查询', 90, 12, '', NULL, 'F', '0', '0', 'oa:docTemplate:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (212, '公文模板新增', 90, 13, '', NULL, 'F', '0', '0', 'oa:docTemplate:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (213, '公文模板修改', 90, 14, '', NULL, 'F', '0', '0', 'oa:docTemplate:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (214, '公文模板删除', 90, 15, '', NULL, 'F', '0', '0', 'oa:docTemplate:remove', '#');
+
 MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting');
 
-MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (101, '岗位管理', 100, 1, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard');
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (103, '用户管理', 100, 1, 'user', 'system/user/index', 'C', '0', '0', 'system:user:list', 'user');
 
-MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (102, '操作日志', 100, 2, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (104, '用户查询', 103, 1, '', NULL, 'F', '0', '0', 'system:user:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (105, '用户新增', 103, 2, '', NULL, 'F', '0', '0', 'system:user:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (106, '用户修改', 103, 3, '', NULL, 'F', '0', '0', 'system:user:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (107, '用户删除', 103, 4, '', NULL, 'F', '0', '0', 'system:user:remove', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (108, '重置密码', 103, 5, '', NULL, 'F', '0', '0', 'system:user:resetPwd', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (109, '角色管理', 100, 2, 'role', 'system/role/index', 'C', '0', '0', 'system:role:list', 'peoples');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (111, '角色查询', 109, 1, '', NULL, 'F', '0', '0', 'system:role:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (112, '角色新增', 109, 2, '', NULL, 'F', '0', '0', 'system:role:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (113, '角色修改', 109, 3, '', NULL, 'F', '0', '0', 'system:role:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (114, '角色删除', 109, 4, '', NULL, 'F', '0', '0', 'system:role:remove', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (115, '部门管理', 100, 3, 'dept', 'system/dept/index', 'C', '0', '0', 'system:dept:list', 'tree');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (116, '部门查询', 115, 1, '', NULL, 'F', '0', '0', 'system:dept:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (117, '部门新增', 115, 2, '', NULL, 'F', '0', '0', 'system:dept:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (118, '部门修改', 115, 3, '', NULL, 'F', '0', '0', 'system:dept:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (119, '部门删除', 115, 4, '', NULL, 'F', '0', '0', 'system:dept:remove', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (101, '岗位管理', 100, 4, 'post', 'system/post/index', 'C', '0', '0', 'system:post:list', 'postcard');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (121, '岗位查询', 101, 1, '', NULL, 'F', '0', '0', 'system:post:query', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (122, '岗位新增', 101, 2, '', NULL, 'F', '0', '0', 'system:post:add', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (123, '岗位修改', 101, 3, '', NULL, 'F', '0', '0', 'system:post:edit', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (124, '岗位删除', 101, 4, '', NULL, 'F', '0', '0', 'system:post:remove', '#');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (102, '操作日志', 100, 5, 'log', 'system/log/index', 'C', '0', '0', 'system:log:list', 'document-checked');
+
+MERGE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) KEY (menu_id) VALUES (126, '日志删除', 102, 1, '', NULL, 'F', '0', '0', 'system:log:remove', '#');
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 1);
 
@@ -674,7 +778,17 @@ MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 12
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 13);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 14);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 20);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 21);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 22);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 23);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 24);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 30);
 
@@ -682,7 +796,31 @@ MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 31
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 32);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 33);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 34);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 35);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 36);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 37);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 40);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 41);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 42);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 43);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 44);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 45);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 46);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 47);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 50);
 
@@ -706,7 +844,17 @@ MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 64
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 70);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 71);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 72);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 73);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 74);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 80);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 81);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 90);
 
@@ -722,29 +870,127 @@ MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 95
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 96);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 200);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 201);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 202);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 203);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 210);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 211);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 212);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 213);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 214);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 100);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 103);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 104);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 105);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 106);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 107);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 108);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 109);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 111);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 112);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 113);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 114);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 115);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 116);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 117);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 118);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 119);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 101);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 121);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 122);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 123);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 124);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 102);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (1, 126);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 1);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 10);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 14);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 20);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 21);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 22);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 23);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 24);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 30);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 31);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 33);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 34);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 35);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 36);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 37);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 40);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 41);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 42);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 43);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 44);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 45);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 46);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 50);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 51);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 60);
 
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 61);
+
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 80);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 81);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 90);
 
@@ -757,6 +1003,98 @@ MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 94
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 95);
 
 MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (2, 96);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 1);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 10);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 14);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 20);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 21);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 22);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 23);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 24);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 30);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 31);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 32);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 33);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 34);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 35);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 36);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 37);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 40);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 41);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 42);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 43);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 44);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 45);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 46);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 47);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 50);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 51);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 52);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 53);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 60);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 61);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 62);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 63);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 70);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 71);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 80);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 81);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 90);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 91);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 92);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 93);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 94);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 95);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 96);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 101);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 121);
+
+MERGE INTO sys_role_menu (role_id, menu_id) KEY (role_id, menu_id) VALUES (3, 200);
 
 MERGE INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) KEY (doc_type_id) VALUES (1000, '通知', 'TZ', 0, 1, '0');
 

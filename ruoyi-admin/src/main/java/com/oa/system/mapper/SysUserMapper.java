@@ -17,11 +17,12 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     @Select("SELECT u.* FROM sys_user u WHERE u.username = #{username} AND u.del_flag = '0'")
     SysUser selectByUsername(@Param("username") String username);
 
-    @Select("SELECT DISTINCT m.perms FROM sys_role r " +
-            "LEFT JOIN sys_user_role ur ON ur.role_id = r.role_id " +
-            "LEFT JOIN sys_role_menu rm ON rm.role_id = r.role_id " +
-            "LEFT JOIN sys_menu m ON m.menu_id = rm.menu_id " +
-            "WHERE ur.user_id = #{userId} AND m.perms IS NOT NULL AND m.perms != '' AND r.status = '0' AND m.status = '0'")
+    @Select("SELECT DISTINCT m.perms FROM sys_user_role ur " +
+            "INNER JOIN sys_role r ON r.role_id = ur.role_id " +
+            "INNER JOIN sys_role_menu rm ON rm.role_id = r.role_id " +
+            "INNER JOIN sys_menu m ON m.menu_id = rm.menu_id " +
+            "WHERE ur.user_id = #{userId} AND m.perms IS NOT NULL AND m.perms != '' " +
+            "AND r.status = '0' AND r.del_flag = '0' AND m.status = '0' AND m.del_flag = '0'")
     Set<String> selectPermsByUserId(@Param("userId") Long userId);
 
     @Select("SELECT role_id FROM sys_user_role WHERE user_id = #{userId}")

@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.annotation.*;
 import com.oa.common.core.domain.BaseEntity;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @TableName("sys_menu")
 public class SysMenu extends BaseEntity {
@@ -19,4 +21,8 @@ public class SysMenu extends BaseEntity {
     private String status;
     private String perms;
     private String icon;
+
+    /** 子菜单，仅用于组装授权树返回前端，不映射数据库列。 */
+    @TableField(exist = false)
+    private List<SysMenu> children;
 }

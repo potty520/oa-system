@@ -2,6 +2,7 @@ package com.oa.controller;
 
 import com.oa.oa.controller.*;
 import com.oa.system.controller.SysDeptController;
+import com.oa.system.controller.SysMenuController;
 import com.oa.system.controller.SysRoleController;
 import com.oa.system.controller.SysUserController;
 import org.junit.jupiter.api.Test;
@@ -24,6 +25,7 @@ class ControllerRouteContractTest {
         assertRoute(SysUserController.class, "/system/user");
         assertRoute(SysRoleController.class, "/system/role");
         assertRoute(SysDeptController.class, "/system/dept");
+        assertRoute(SysMenuController.class, "/system/menu");
     }
 
     private void assertRoute(Class<?> controller, String expected) {

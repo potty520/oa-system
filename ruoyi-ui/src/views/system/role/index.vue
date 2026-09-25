@@ -66,7 +66,7 @@
     />
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="500px" append-to-body>
+    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="620px" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="角色名称" prop="roleName">
           <el-input v-model="form.roleName" placeholder="请输入角色名称" />
@@ -94,6 +94,23 @@
         </el-form-item>
         <el-form-item v-if="form.dataScope === '2'" label="自定义部门">
           <el-input v-model="form.deptIdsText" placeholder="部门ID，多个用英文逗号分隔" />
+        </el-form-item>
+        <el-form-item label="菜单权限">
+          <div class="menu-tree-toolbar">
+            <el-checkbox v-model="menuExpandAll" @change="handleMenuExpandAll">展开/折叠</el-checkbox>
+            <el-checkbox v-model="menuCheckAll" @change="handleMenuCheckAll">全选/全不选</el-checkbox>
+            <span class="menu-tree-tip">勾选到按钮级才会授予对应操作权限</span>
+          </div>
+          <el-tree
+            ref="menuTree"
+            :data="menuOptions"
+            :props="menuProps"
+            node-key="menuId"
+            show-checkbox
+            check-strictly
+            empty-text="暂无菜单数据"
+            class="menu-tree"
+          />
         </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入备注" />
@@ -128,6 +145,10 @@ export default {
       },
       dialogVisible: false,
       dialogTitle: '',
+      menuOptions: [],
+      menuProps: { label: 'menuName', children: 'children' },
+      menuExpandAll: false,
+      menuCheckAll: false,
       form: {
         roleId: undefined,
         roleName: '',
@@ -136,6 +157,7 @@ export default {
         dataScope: '1',
         deptIds: [],
         deptIdsText: '',
+        menuIds: [],
         status: '0',
         remark: ''
       },
@@ -175,6 +197,7 @@ export default {
       this.resetForm()
       this.dialogTitle = '新增角色'
       this.dialogVisible = true
+      this.loadMenuTree([])
     },
     handleUpdate(row) {
       this.resetForm()
@@ -184,7 +207,43 @@ export default {
         this.form.deptIdsText = (this.form.deptIds || []).join(',')
         this.dialogTitle = '修改角色'
         this.dialogVisible = true
+        this.loadMenuTree(this.form.menuIds || [])
       })
+    },
+    loadMenuTree(checkedKeys) {
+      this.menuExpandAll = false
+      this.menuCheckAll = false
+      return request({ url: '/system/menu/tree', method: 'get' }).then(res => {
+        this.menuOptions = res.data || []
+        this.$nextTick(() => {
+          if (this.$refs.menuTree) {
+            this.$refs.menuTree.setCheckedKeys(checkedKeys || [])
+          }
+        })
+      }).catch(() => {
+        this.menuOptions = []
+      })
+    },
+    handleMenuExpandAll(value) {
+      if (!this.$refs.menuTree) {
+        return
+      }
+      const nodesMap = this.$refs.menuTree.store.nodesMap
+      Object.keys(nodesMap).forEach(key => {
+        nodesMap[key].expanded = value
+      })
+    },
+    handleMenuCheckAll(value) {
+      if (!this.$refs.menuTree) {
+        return
+      }
+      this.$refs.menuTree.setCheckedKeys(value ? this.collectMenuIds(this.menuOptions) : [])
+    },
+    collectMenuIds(nodes) {
+      return (nodes || []).reduce((acc, node) => {
+        acc.push(node.menuId)
+        return acc.concat(this.collectMenuIds(node.children))
+      }, [])
     },
     handleDelete(row) {
       const roleIds = row.roleId ? [row.roleId] : this.ids
@@ -216,7 +275,13 @@ export default {
     submitForm() {
       this.$refs.form.validate(valid => {
         if (valid) {
-          const submitData = { ...this.form, deptIds: this.form.deptIdsText ? this.form.deptIdsText.split(',').map(value => Number(value.trim())).filter(Boolean) : [] }
+          const submitData = {
+            ...this.form,
+            deptIds: this.form.deptIdsText ? this.form.deptIdsText.split(',').map(value => Number(value.trim())).filter(Boolean) : [],
+            menuIds: this.$refs.menuTree ? this.$refs.menuTree.getCheckedKeys() : (this.form.menuIds || [])
+          }
+          delete submitData.deptIdsText
+          delete submitData.children
           if (this.form.roleId) {
             request({ url: '/system/role', method: 'put', data: submitData }).then(() => {
               this.$message.success('修改成功')
@@ -242,13 +307,37 @@ export default {
         dataScope: '1',
         deptIds: [],
         deptIdsText: '',
+        menuIds: [],
         status: '0',
         remark: ''
       }
       if (this.$refs.form) {
         this.$refs.form.resetFields()
       }
+      if (this.$refs.menuTree) {
+        this.$refs.menuTree.setCheckedKeys([])
+      }
     }
   }
 }
 </script>
+
+<style scoped>
+.menu-tree-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+.menu-tree-tip {
+  color: #909399;
+  font-size: 12px;
+}
+.menu-tree {
+  max-height: 300px;
+  overflow: auto;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 4px;
+}
+</style>
