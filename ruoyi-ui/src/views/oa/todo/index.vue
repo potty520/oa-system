@@ -17,7 +17,12 @@
       <el-table-column label="任务状态" prop="status" width="100" align="center"><template slot-scope="scope"><el-tag v-if="scope.row.status === '0'" type="warning">未完成</el-tag><el-tag v-else type="success">已完成</el-tag></template></el-table-column>
       <el-table-column label="申请人" prop="applyUser" min-width="120" show-overflow-tooltip />
       <el-table-column label="申请时间" prop="applyTime" width="160" align="center" />
-      <el-table-column label="操作" width="120" align="center"><template slot-scope="scope"><el-button v-if="scope.row.status === '0'" size="mini" type="text" icon="el-icon-check" @click="handleComplete(scope.row)">完成</el-button></template></el-table-column>
+      <el-table-column label="操作" width="160" align="center">
+        <template slot-scope="scope">
+          <el-button v-if="scope.row.status === '0' && isActionable(scope.row.todoType)" size="mini" type="text" icon="el-icon-check" @click="handleComplete(scope.row)">完成</el-button>
+          <span v-else-if="scope.row.status === '0'" class="todo-hint">请到对应审批页处理</span>
+        </template>
+      </el-table-column>
     </el-table>
     <pagination v-show="total > 0" :total="total" :page.sync="queryParams.pageNum" :limit.sync="queryParams.pageSize" @pagination="getList" />
   </div>
@@ -35,6 +40,9 @@ export default {
     getList() { this.loading = true; list(this.queryParams).then(res => { this.tableData = res.rows || []; this.total = res.total || 0 }).finally(() => { this.loading = false }) },
     handleQuery() { this.queryParams.pageNum = 1; this.getList() },
     resetQuery() { this.$refs.queryForm.resetFields(); this.handleQuery() },
+    isActionable(todoType) {
+      return todoType === 'incoming_doc' || todoType === 'outgoing_doc'
+    },
     handleComplete(row) {
       this.$confirm('确定标记该任务为已完成吗？', '提示', { type: 'warning' }).then(() => complete(row.todoType, row.relatedId)).then(() => {
         this.getList(); this.$message.success('操作成功')
@@ -43,3 +51,10 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.todo-hint {
+  color: #909399;
+  font-size: 12px;
+}
+</style>
