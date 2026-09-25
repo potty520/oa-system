@@ -31,3 +31,7 @@ Thumbs.db
 # Playwright CLI artifacts
 .playwright-cli/
 playwright-report/
+
+# Python
+__pycache__/
+*.pyc

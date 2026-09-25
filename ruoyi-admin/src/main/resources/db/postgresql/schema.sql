@@ -585,7 +585,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO sys_user_role (user_id, role_id) VALUES
 (1, 1),
 (2, 2),
-(3, 2)
+(3, 3)
 ON CONFLICT DO NOTHING;
 
 INSERT INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES

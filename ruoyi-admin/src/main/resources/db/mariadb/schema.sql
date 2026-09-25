@@ -562,7 +562,7 @@ INSERT IGNORE INTO sys_role (role_id, role_name, role_key, role_sort, data_scope
 INSERT IGNORE INTO sys_user_role (user_id, role_id) VALUES
 (1, 1),
 (2, 2),
-(3, 2);
+(3, 3);
 
 INSERT IGNORE INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES
 (1, 'admin', '系统管理员', 1, '0'),

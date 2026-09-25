@@ -587,7 +587,7 @@ MERGE INTO sys_user_role (user_id, role_id) KEY (user_id, role_id) VALUES (1, 1)
 
 MERGE INTO sys_user_role (user_id, role_id) KEY (user_id, role_id) VALUES (2, 2);
 
-MERGE INTO sys_user_role (user_id, role_id) KEY (user_id, role_id) VALUES (3, 2);
+MERGE INTO sys_user_role (user_id, role_id) KEY (user_id, role_id) VALUES (3, 3);
 
 MERGE INTO sys_post (post_id, post_code, post_name, post_sort, status) KEY (post_id) VALUES (1, 'admin', '系统管理员', 1, '0');
 

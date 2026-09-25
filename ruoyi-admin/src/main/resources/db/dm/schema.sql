@@ -599,7 +599,7 @@ MERGE INTO sys_user_role t USING (SELECT 1 AS user_id, 1 AS role_id FROM DUAL) s
 
 MERGE INTO sys_user_role t USING (SELECT 2 AS user_id, 2 AS role_id FROM DUAL) s ON (t.user_id = s.user_id AND t.role_id = s.role_id) WHEN NOT MATCHED THEN INSERT (user_id, role_id) VALUES (s.user_id, s.role_id);
 
-MERGE INTO sys_user_role t USING (SELECT 3 AS user_id, 2 AS role_id FROM DUAL) s ON (t.user_id = s.user_id AND t.role_id = s.role_id) WHEN NOT MATCHED THEN INSERT (user_id, role_id) VALUES (s.user_id, s.role_id);
+MERGE INTO sys_user_role t USING (SELECT 3 AS user_id, 3 AS role_id FROM DUAL) s ON (t.user_id = s.user_id AND t.role_id = s.role_id) WHEN NOT MATCHED THEN INSERT (user_id, role_id) VALUES (s.user_id, s.role_id);
 
 SET IDENTITY_INSERT sys_post ON;
 

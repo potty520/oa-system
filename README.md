@@ -186,6 +186,12 @@ npm run build:prod
 仓库中不再内置任何可用口令。数据库脚本把 `admin`、`zhangsan`、`lisi` 的 `password` 写成占位符
 `PENDING_INITIAL_PASSWORD`（不是合法的 BCrypt 串，任何密码都无法匹配），并置 `must_change_pwd = '1'`。
 
+| 账号 | 角色 | 权限范围 |
+| --- | --- | --- |
+| `admin` | 超级管理员 | 全部 84 个菜单/按钮权限 |
+| `zhangsan` | 普通用户 | 自助办公（公告查看、日程、请假、报销、待办），无审批权 |
+| `lisi` | 部门经理 | 普通用户权限 + 请假/报销审批、收发文拟制、流程与公文类型查看 |
+
 应用首次启动时由 `InitialAccountInitializer` 完成初始化：
 
 1. 优先读取环境变量 `OA_INIT_<用户名大写>_PASSWORD`，例如 `OA_INIT_ADMIN_PASSWORD`；

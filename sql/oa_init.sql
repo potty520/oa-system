@@ -728,7 +728,7 @@ INSERT INTO sys_post (post_id, post_code, post_name, post_sort, status) VALUES
 INSERT INTO sys_user_post VALUES (1, 1), (2, 3), (3, 2);
 
 -- 用户角色关联
-INSERT INTO sys_user_role VALUES (1, 1), (2, 2), (3, 2);
+INSERT INTO sys_user_role VALUES (1, 1), (2, 2), (3, 3);
 
 -- 菜单权限（OA 模块 + 系统管理，menu_id 一经发布不再复用）
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES

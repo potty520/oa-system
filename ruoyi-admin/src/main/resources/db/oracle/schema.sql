@@ -587,7 +587,7 @@ MERGE INTO sys_user_role t USING (SELECT 1 AS user_id, 1 AS role_id FROM DUAL) s
 
 MERGE INTO sys_user_role t USING (SELECT 2 AS user_id, 2 AS role_id FROM DUAL) s ON (t.user_id = s.user_id AND t.role_id = s.role_id) WHEN NOT MATCHED THEN INSERT (user_id, role_id) VALUES (s.user_id, s.role_id);
 
-MERGE INTO sys_user_role t USING (SELECT 3 AS user_id, 2 AS role_id FROM DUAL) s ON (t.user_id = s.user_id AND t.role_id = s.role_id) WHEN NOT MATCHED THEN INSERT (user_id, role_id) VALUES (s.user_id, s.role_id);
+MERGE INTO sys_user_role t USING (SELECT 3 AS user_id, 3 AS role_id FROM DUAL) s ON (t.user_id = s.user_id AND t.role_id = s.role_id) WHEN NOT MATCHED THEN INSERT (user_id, role_id) VALUES (s.user_id, s.role_id);
 
 MERGE INTO sys_post t USING (SELECT 1 AS post_id, 'admin' AS post_code, '系统管理员' AS post_name, 1 AS post_sort, '0' AS status FROM DUAL) s ON (t.post_id = s.post_id) WHEN NOT MATCHED THEN INSERT (post_id, post_code, post_name, post_sort, status) VALUES (s.post_id, s.post_code, s.post_name, s.post_sort, s.status);
 

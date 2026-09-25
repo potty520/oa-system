@@ -217,7 +217,9 @@ SEEDS: dict[str, tuple[list[str], list[tuple]]] = {
         (2, "普通用户", "common", 2, "5", "0"),
         (3, "部门经理", "manager", 3, "4", "0"),
     ]),
-    "sys_user_role": (["user_id", "role_id"], [(1, 1), (2, 2), (3, 2)]),
+    # lisi 的岗位是部门经理(sys_user_post 3->2)、也是财务部负责人，角色同样给部门经理，
+    # 否则种子数据里 manager 角色没有任何用户，审批类权限形同虚设。
+    "sys_user_role": (["user_id", "role_id"], [(1, 1), (2, 2), (3, 3)]),
     "sys_post": (["post_id", "post_code", "post_name", "post_sort", "status"], [
         (1, "admin", "系统管理员", 1, "0"),
         (2, "manager", "部门经理", 2, "0"),
