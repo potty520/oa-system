@@ -28,7 +28,7 @@
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="归档台账" name="archive">
+      <el-tab-pane v-if="canManageArchive" label="归档台账" name="archive">
         <el-table v-loading="loading" :data="archiveRows" border>
           <el-table-column label="归档编号" prop="archiveCode" width="160" />
           <el-table-column label="公文ID" prop="docId" width="100" align="center" />
@@ -141,14 +141,20 @@ export default {
       templateRules: { templateName: [{ required: true, message: '请输入模板名称', trigger: 'blur' }], docTypeId: [{ required: true, message: '请选择公文类型', trigger: 'change' }] }
     }
   },
+  computed: {
+    // 归档台账是全单位的公文清单，后端只开放给收发文管理岗，普通用户不展示该页签
+    canManageArchive() { return this.hasPermi('oa:incomingDoc:list') || this.hasPermi('oa:outgoingDoc:list') }
+  },
   created() { this.loadAll() },
   methods: {
+    hasPermi(permission) { const permissions = this.$store.getters.permissions || []; const user = this.$store.getters.userInfo || {}; return user.userId === 1 || permissions.includes('*:*:*') || permissions.includes(permission) },
     loadAll() {
       this.loading = true
+      const archives = this.canManageArchive ? archiveList({ pageNum: 1, pageSize: 100 }) : Promise.resolve({ rows: [] })
       Promise.all([
         myCirculation(),
         myDone(),
-        archiveList({ pageNum: 1, pageSize: 100 }),
+        archives,
         docTypeList({}),
         docTemplateList({}),
         documentListApi({ pageNum: 1, pageSize: 100 })

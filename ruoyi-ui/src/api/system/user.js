@@ -22,6 +22,14 @@ export function logout() {
   })
 }
 
+// 用户下拉选项：只含 userId/userName/nickName，供各处选人控件使用
+export function listUserOptions() {
+  return request({
+    url: '/system/user/options',
+    method: 'get'
+  })
+}
+
 export function updateUserPwd(data) {
   return request({
     url: '/system/user/profile/updatePwd',

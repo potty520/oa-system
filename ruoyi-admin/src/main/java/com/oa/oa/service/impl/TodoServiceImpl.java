@@ -37,8 +37,8 @@ public class TodoServiceImpl implements ITodoService {
     }
 
     @Override
-    public int selectTodoCount(Long userId) {
-        return todoMapper.selectTodoCount(userId);
+    public int selectTodoCount(Long userId, String userName) {
+        return todoMapper.selectTodoCount(userId, userName);
     }
 
     /**

@@ -44,7 +44,7 @@ public class DashboardController {
         String username = SecurityUtils.getUsername();
         boolean unrestricted = SecurityUtils.isAdmin(userId);
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("todoCount", todoService.selectTodoCount(userId));
+        result.put("todoCount", todoService.selectTodoCount(userId, username));
         result.put("incomingPending", incomingDocMapper.selectCount(incomingWrapper(unrestricted, userId, username)
                 .in(OaIncomingDoc::getStatus, STATUS_IN_PROGRESS)));
         result.put("outgoingPending", outgoingDocMapper.selectCount(outgoingWrapper(unrestricted, userId, username)

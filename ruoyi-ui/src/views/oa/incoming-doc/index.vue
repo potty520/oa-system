@@ -50,7 +50,7 @@
         <el-row :gutter="20">
           <el-col :span="8"><el-form-item label="紧急程度" prop="docLevel"><el-select v-model="form.docLevel" style="width:100%"><el-option label="普通" value="1" /><el-option label="重要" value="2" /><el-option label="紧急" value="3" /></el-select></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="密级" prop="docSecret"><el-select v-model="form.docSecret" style="width:100%"><el-option label="普通" value="1" /><el-option label="秘密" value="2" /><el-option label="机密" value="3" /><el-option label="绝密" value="4" /></el-select></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="办理人"><el-input v-model="form.handlerName" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="办理人"><el-select v-model="form.handlerId" filterable clearable placeholder="请选择办理人" style="width:100%"><el-option v-for="item in userOptions" :key="item.userId" :label="userLabel(item)" :value="item.userId" /></el-select></el-form-item></el-col>
         </el-row>
         <el-form-item label="内容摘要" prop="summary"><el-input v-model="form.summary" type="textarea" :rows="4" /></el-form-item>
         <el-form-item label="附件地址"><el-input v-model="form.attachmentUrl" /></el-form-item>
@@ -78,31 +78,34 @@
 
 <script>
 import { list, getInfo, add, edit, remove, sign, complete } from '@/api/oa/incomingDoc'
+import { listUserOptions } from '@/api/system/user'
 import { docTypeList } from '@/api/oa/docProcess'
 import { list as flowList } from '@/api/oa/docFlow'
 import DocActionDialog from '../components/DocActionDialog'
-const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, sourceUnit: '', receiveDate: '', docLevel: '1', docSecret: '1', summary: '', attachmentUrl: '', handlerId: null, handlerName: '', remark: '' })
+const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, flowId: null, sourceUnit: '', receiveDate: '', docLevel: '1', docSecret: '1', summary: '', attachmentUrl: '', handlerId: null, handlerName: '', remark: '' })
 export default {
   name: 'IncomingDoc',
   components: { DocActionDialog },
   data() {
     return {
-      loading: false, tableData: [], total: 0, docTypeOptions: [], flowOptions: [],
+      loading: false, tableData: [], total: 0, docTypeOptions: [], flowOptions: [], userOptions: [],
       queryParams: { pageNum: 1, pageSize: 10, docTitle: undefined, docNumber: undefined, status: undefined },
       dialogVisible: false, dialogTitle: '', form: emptyForm(),
       rules: { docTitle: [{ required: true, message: '请输入收文标题', trigger: 'blur' }], docNumber: [{ required: true, message: '请输入收文编号', trigger: 'blur' }] },
       viewVisible: false, viewData: {}, actionVisible: false, actionDocId: null
     }
   },
-  created() { this.getDocTypes(); this.getFlows(); this.getList() },
+  created() { this.getDocTypes(); this.getFlows(); this.getUsers(); this.getList() },
   methods: {
     hasPermi(permission) { const permissions = this.$store.getters.permissions || []; const user = this.$store.getters.userInfo || {}; return user.userId === 1 || permissions.includes('*:*:*') || permissions.includes(permission) },
+    userLabel(item) { return item.nickName ? item.nickName + '（' + item.userName + '）' : item.userName },
     levelLabel(value) { return { '1': '普通', '2': '重要', '3': '紧急' }[value] || '普通' },
     secretLabel(value) { return { '1': '普通', '2': '秘密', '3': '机密', '4': '绝密' }[value] || '普通' },
     statusLabel(value) { return { '0': '待签收', '1': '办理中', '2': '已办结', '3': '已归档' }[value] || '未知' },
     docTypeLabel(id) { const item = this.docTypeOptions.find(option => String(option.docTypeId) === String(id)); return item ? item.typeName : '未选择' },
     getDocTypes() { docTypeList({}).then(res => { this.docTypeOptions = res.data || [] }) },
     getFlows() { flowList({ pageNum: 1, pageSize: 100, flowType: '1', status: '0' }).then(res => { this.flowOptions = res.rows || [] }) },
+    getUsers() { listUserOptions().then(res => { this.userOptions = res.data || [] }).catch(() => {}) },
     getList() { this.loading = true; list(this.queryParams).then(res => { this.tableData = res.rows || []; this.total = res.total || 0 }).finally(() => { this.loading = false }) },
     handleQuery() { this.queryParams.pageNum = 1; this.getList() },
     resetQuery() { this.$refs.queryForm.resetFields(); this.handleQuery() },

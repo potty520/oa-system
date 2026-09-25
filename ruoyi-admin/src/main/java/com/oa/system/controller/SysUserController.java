@@ -33,9 +33,15 @@ public class SysUserController extends BaseController {
         return getDataTable(list);
     }
 
-    @GetMapping("/contacts")
-    public AjaxResult contacts() {
-        return AjaxResult.success(userService.selectUserList(new SysUser()));
+    /**
+     * 用户下拉选项。任何已登录用户都可读，但只返回选人所需的最小字段。
+     *
+     * <p>不能直接用 /list：那个接口带数据范围过滤，普通用户只能看到自己，
+     * 没法把公文转办/传阅给其他部门的同事。</p>
+     */
+    @GetMapping("/options")
+    public AjaxResult options() {
+        return AjaxResult.success(userService.selectUserOptions());
     }
 
     @PreAuthorize("@ss.hasPermi('system:user:query')")

@@ -47,7 +47,7 @@
         <el-row :gutter="20">
           <el-col :span="8"><el-form-item label="紧急程度"><el-select v-model="form.docLevel" style="width:100%"><el-option label="普通" value="1" /><el-option label="重要" value="2" /><el-option label="紧急" value="3" /></el-select></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="密级"><el-select v-model="form.docSecret" style="width:100%"><el-option label="普通" value="1" /><el-option label="秘密" value="2" /><el-option label="机密" value="3" /><el-option label="绝密" value="4" /></el-select></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="状态"><el-select v-model="form.status" style="width:100%"><el-option label="草稿" value="0" /><el-option label="审核中" value="1" /></el-select></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="签发人" prop="signUserId"><el-select v-model="form.signUserId" filterable clearable placeholder="请选择签发人" style="width:100%"><el-option v-for="item in userOptions" :key="item.userId" :label="userLabel(item)" :value="item.userId" /></el-select></el-form-item></el-col>
         </el-row>
         <el-form-item label="主送单位"><el-input v-model="form.mainSend" /></el-form-item>
         <el-form-item label="抄送单位"><el-input v-model="form.copySend" /></el-form-item>
@@ -77,31 +77,35 @@
 
 <script>
 import { list, getInfo, add, edit, remove, submit, sign } from '@/api/oa/outgoingDoc'
+import { listUserOptions } from '@/api/system/user'
 import { docTypeList } from '@/api/oa/docProcess'
 import { list as flowList } from '@/api/oa/docFlow'
 import DocActionDialog from '../components/DocActionDialog'
-const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, draftUnit: '', draftDate: '', docLevel: '1', docSecret: '1', mainSend: '', copySend: '', summary: '', attachmentUrl: '', signUserId: null, signUserName: '', status: '0', remark: '' })
+const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, flowId: null, draftUnit: '', draftDate: '', docLevel: '1', docSecret: '1', mainSend: '', copySend: '', summary: '', attachmentUrl: '', signUserId: null, signUserName: '', remark: '' })
 export default {
   name: 'OutgoingDoc',
   components: { DocActionDialog },
   data() {
     return {
-      loading: false, tableData: [], total: 0, docTypeOptions: [], flowOptions: [],
+      loading: false, tableData: [], total: 0, docTypeOptions: [], flowOptions: [], userOptions: [],
       queryParams: { pageNum: 1, pageSize: 10, docTitle: undefined, docNumber: undefined, status: undefined },
       dialogVisible: false, dialogTitle: '', form: emptyForm(),
-      rules: { docTitle: [{ required: true, message: '请输入发文标题', trigger: 'blur' }], docNumber: [{ required: true, message: '请输入发文编号', trigger: 'blur' }] },
+      // 后端不允许起草人自签，所以送审前必须先指定签发人
+      rules: { docTitle: [{ required: true, message: '请输入发文标题', trigger: 'blur' }], docNumber: [{ required: true, message: '请输入发文编号', trigger: 'blur' }], signUserId: [{ required: true, message: '请选择签发人', trigger: 'change' }] },
       viewVisible: false, viewData: {}, actionVisible: false, actionDocId: null
     }
   },
-  created() { this.getDocTypes(); this.getFlows(); this.getList() },
+  created() { this.getDocTypes(); this.getFlows(); this.getUsers(); this.getList() },
   methods: {
     hasPermi(permission) { const permissions = this.$store.getters.permissions || []; const user = this.$store.getters.userInfo || {}; return user.userId === 1 || permissions.includes('*:*:*') || permissions.includes(permission) },
+    userLabel(item) { return item.nickName ? item.nickName + '（' + item.userName + '）' : item.userName },
     levelLabel(value) { return { '1': '普通', '2': '重要', '3': '紧急' }[value] || '普通' },
     secretLabel(value) { return { '1': '普通', '2': '秘密', '3': '机密', '4': '绝密' }[value] || '普通' },
     statusLabel(value) { return { '0': '草稿', '1': '审核中', '2': '已签发', '3': '已归档' }[value] || '未知' },
     docTypeLabel(id) { const item = this.docTypeOptions.find(option => String(option.docTypeId) === String(id)); return item ? item.typeName : '未选择' },
     getDocTypes() { docTypeList({}).then(res => { this.docTypeOptions = res.data || [] }) },
     getFlows() { flowList({ pageNum: 1, pageSize: 100, flowType: '2', status: '0' }).then(res => { this.flowOptions = res.rows || [] }) },
+    getUsers() { listUserOptions().then(res => { this.userOptions = res.data || [] }).catch(() => {}) },
     getList() { this.loading = true; list(this.queryParams).then(res => { this.tableData = res.rows || []; this.total = res.total || 0 }).finally(() => { this.loading = false }) },
     handleQuery() { this.queryParams.pageNum = 1; this.getList() },
     resetQuery() { this.$refs.queryForm.resetFields(); this.handleQuery() },

@@ -32,7 +32,7 @@ public class OaTodoController extends BaseController {
     @GetMapping("/count")
     public AjaxResult count() {
         Long userId = SecurityUtils.getUserId();
-        int count = todoService.selectTodoCount(userId);
+        int count = todoService.selectTodoCount(userId, SecurityUtils.getUsername());
         return AjaxResult.success(count);
     }
 

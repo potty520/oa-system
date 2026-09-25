@@ -13,6 +13,9 @@ public interface ISysUserService extends IService<SysUser> {
 
     List<SysUser> selectUserList(SysUser user);
 
+    /** 用户下拉选项：只含 id/姓名/部门，不受数据范围限制 */
+    List<SysUser> selectUserOptions();
+
     SysUser selectUserById(Long userId);
 
     int insertUser(SysUser user);

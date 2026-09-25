@@ -21,12 +21,21 @@
           <el-option label="归档" value="archive" />
         </el-select>
       </el-form-item>
-      <el-form-item v-if="['transfer','urge','delegate','agent'].includes(form.action)" label="目标用户ID">
-        <el-input-number v-model="form.targetUserId" :min="1" controls-position="right" style="width:100%" />
+      <el-form-item v-if="singleTargetActions.includes(form.action)" label="目标用户">
+        <el-select v-model="form.targetUserId" filterable clearable placeholder="请选择目标用户" style="width:100%">
+          <el-option v-for="item in userOptions" :key="item.userId" :label="userLabel(item)" :value="item.userId" />
+        </el-select>
       </el-form-item>
-      <el-form-item v-if="['transfer','urge','delegate','agent'].includes(form.action)" label="目标用户"><el-input v-model="form.targetUserName" placeholder="姓名" /></el-form-item>
-      <el-form-item v-if="['countersign','add_sign','circulate'].includes(form.action)" label="目标用户ID"><el-input v-model="form.targetUserIdsText" placeholder="多个用户使用英文逗号分隔" /></el-form-item>
-      <el-form-item v-if="form.action === 'cancel_sign'" label="签批记录ID"><el-input-number v-model="form.approvalId" :min="1" controls-position="right" style="width:100%" /></el-form-item>
+      <el-form-item v-if="multiTargetActions.includes(form.action)" label="目标用户">
+        <el-select v-model="form.targetUserIds" multiple filterable clearable placeholder="可多选" style="width:100%">
+          <el-option v-for="item in userOptions" :key="item.userId" :label="userLabel(item)" :value="item.userId" />
+        </el-select>
+      </el-form-item>
+      <el-form-item v-if="form.action === 'cancel_sign'" label="签批记录">
+        <el-select v-model="form.approvalId" clearable placeholder="请选择要撤回的签批" style="width:100%">
+          <el-option v-for="item in cancellableApprovals" :key="item.approvalId" :label="approvalLabel(item)" :value="item.approvalId" />
+        </el-select>
+      </el-form-item>
       <el-form-item v-if="form.action === 'archive'" label="归档编号"><el-input v-model="form.archiveCode" placeholder="留空自动生成" /></el-form-item>
       <el-form-item v-if="form.action === 'archive'" label="归档位置"><el-input v-model="form.archiveLocation" /></el-form-item>
       <el-form-item label="办理意见"><el-input v-model="form.opinion" type="textarea" :rows="3" /></el-form-item>
@@ -46,23 +55,58 @@
 
 <script>
 import { timeline, action } from '@/api/oa/docProcess'
+import { listUserOptions } from '@/api/system/user'
+
+// 目标用户一律从后端下拉接口选，不再让用户手输 ID/姓名：
+// 手输的姓名会被写进办理轨迹，等于可以随意冒名。
+const emptyForm = () => ({
+  action: '',
+  opinion: '',
+  approvalId: undefined,
+  targetUserId: undefined,
+  targetUserIds: [],
+  archiveCode: '',
+  archiveLocation: ''
+})
+
 export default {
   name: 'DocActionDialog',
   props: { docType: { type: String, required: true }, docId: { type: Number, default: null }, visible: { type: Boolean, default: false } },
-  data() { return { form: { action: '', opinion: '', approvalId: undefined, targetUserId: undefined, targetUserName: '', targetUserIdsText: '', archiveCode: '', archiveLocation: '' }, timeline: {} } },
+  data() {
+    return {
+      form: emptyForm(),
+      timeline: {},
+      userOptions: [],
+      singleTargetActions: ['transfer', 'urge', 'delegate', 'agent'],
+      multiTargetActions: ['countersign', 'add_sign', 'circulate']
+    }
+  },
   computed: {
-    dialogVisible: { get() { return this.visible }, set(value) { this.$emit('update:visible', value) } }
+    dialogVisible: { get() { return this.visible }, set(value) { this.$emit('update:visible', value) } },
+    currentUserId() { return (this.$store.getters.userInfo || {}).userId },
+    isAdmin() { return this.currentUserId === 1 },
+    cancellableApprovals() {
+      // 后端只允许撤回分配给自己的待办签批，这里同步过滤掉选了也会报错的项
+      return (this.timeline.approvals || []).filter(item => item.approveResult === '0' && (this.isAdmin || item.userId === this.currentUserId))
+    }
   },
   methods: {
+    userLabel(item) { return item.nickName ? item.nickName + '（' + item.userName + '）' : item.userName },
+    approvalLabel(item) { return (item.userName || '未知') + ' / ' + (item.approveRemark || '待办') },
     loadTimeline() {
-      this.form = { action: '', opinion: '', approvalId: undefined, targetUserId: undefined, targetUserName: '', targetUserIdsText: '', archiveCode: '', archiveLocation: '' }
+      this.form = emptyForm()
+      if (this.userOptions.length === 0) {
+        listUserOptions().then(res => { this.userOptions = res.data || [] }).catch(() => {})
+      }
       if (this.docId) timeline(this.docType, this.docId).then(res => { this.timeline = res.data || {} })
     },
     submit() {
       if (!this.form.action) { this.$message.warning('请选择操作类型'); return }
-      const targetUserIds = this.form.targetUserIdsText ? this.form.targetUserIdsText.split(',').map(value => Number(value.trim())).filter(Boolean) : (this.form.targetUserId ? [this.form.targetUserId] : [])
-      const data = { ...this.form, targetUserIds }
-      action(this.docType, this.docId, data).then(() => { this.$message.success('操作成功'); this.dialogVisible = false; this.$emit('success') })
+      action(this.docType, this.docId, { ...this.form }).then(() => {
+        this.$message.success('操作成功')
+        this.dialogVisible = false
+        this.$emit('success')
+      })
     }
   }
 }

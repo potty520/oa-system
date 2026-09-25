@@ -50,7 +50,8 @@ public class OaDocProcessController extends BaseController {
         return AjaxResult.success(docProcessService.getMyDone());
     }
 
-    @PreAuthorize("@ss.hasPermi('oa:doc:list')")
+    // 归档台账是全单位的公文清单，只开放给收发文管理岗
+    @PreAuthorize("@ss.hasAnyPermi('oa:incomingDoc:list,oa:outgoingDoc:list')")
     @GetMapping("/archive/list")
     public TableDataInfo archiveList(OaDocArchive archive) {
         startPage();

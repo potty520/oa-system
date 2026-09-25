@@ -88,6 +88,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    public List<SysUser> selectUserOptions() {
+        // 公文办理人、签发人、传阅对象都需要跨部门选人，所以不套数据范围；
+        // 但只查必要列，不把手机号、邮箱之类的个人信息一并暴露出去
+        LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
+        wrapper.select(SysUser::getUserId, SysUser::getUsername, SysUser::getNickname, SysUser::getDeptId)
+                .eq(SysUser::getStatus, Constants.STATUS_NORMAL)
+                .orderByAsc(SysUser::getUserId);
+        return baseMapper.selectList(wrapper);
+    }
+
+    @Override
     public SysUser selectUserById(Long userId) {
         SysUser user = baseMapper.selectById(userId);
         if (user != null) {

@@ -13,5 +13,5 @@ public interface OaTodoMapper {
                                 @Param("todoTitleLike") String todoTitleLike,
                                 @Param("status") String status);
 
-    int selectTodoCount(@Param("userId") Long userId);
+    int selectTodoCount(@Param("userId") Long userId, @Param("userName") String userName);
 }

@@ -45,6 +45,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
 
     @Override
     public Map<String, Object> getTimeline(String docType, Long docId) {
+        requireDocumentAccess(docType, docId);
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("approvals", approvalMapper.selectList(new LambdaQueryWrapper<OaDocApproval>()
                 .eq(OaDocApproval::getDocType, docType)
@@ -54,7 +55,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(OaDocCirculation::getDocType, docType)
                 .eq(OaDocCirculation::getDocId, docId)
                 .orderByDesc(OaDocCirculation::getCreateTime)));
-        result.put("reminders", getReminderList(docType, docId));
+        result.put("reminders", queryReminders(docType, docId));
         result.put("delegates", delegateMapper.selectList(new LambdaQueryWrapper<OaDocDelegate>()
                 .eq(OaDocDelegate::getDocType, docType)
                 .eq(OaDocDelegate::getDocId, docId)
@@ -88,6 +89,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         }
         if ("submit".equals(action)) {
             requireStatus(docType, DOC_OUTGOING, currentStatus, "0", "只有草稿发文可以提交");
+            requireSignerAssigned(docType, docId);
             setStatus(docType, docId, currentStatus, "1");
             startDocumentFlow(docType, docId, user);
             return;
@@ -143,9 +145,14 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 if (approval == null || !Objects.equals(approval.getDocId(), docId) || !Objects.equals(approval.getDocType(), docType)) {
                     throw new IllegalArgumentException("签批记录不存在");
                 }
-                approval.setApproveResult("8");
-                approval.setApproveRemark(StringUtils.defaultIfBlank(request.getOpinion(), "已撤签"));
-                approvalMapper.updateById(approval);
+                // 只能撤分配给自己的待办签批，否则任何参与人都能把别人的签批改成“已撤签”
+                if (!SecurityUtils.isAdmin(user.getUserId()) && !Objects.equals(approval.getUserId(), user.getUserId())) {
+                    throw new AccessDeniedException("只能撤回分配给自己的签批");
+                }
+                if (approvalMapper.approveIfPending(approval.getApprovalId(), "8",
+                        StringUtils.defaultIfBlank(request.getOpinion(), "已撤签"), user.getUsername()) != 1) {
+                    throw new IllegalStateException("该签批已经办理，无法撤签");
+                }
             } else if ("delegate".equals(action) || "agent".equals(action)) {
                 if (request.getTargetUserId() == null) {
                     throw new IllegalArgumentException("委托或代理需要选择目标用户");
@@ -156,7 +163,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 delegate.setFromUserId(user.getUserId());
                 delegate.setFromUserName(user.getUsername());
                 delegate.setToUserId(request.getTargetUserId());
-                delegate.setToUserName(request.getTargetUserName());
+                delegate.setToUserName(resolveUserName(request.getTargetUserId(), request.getTargetUserName()));
                 delegate.setDelegateType("agent".equals(action) ? "2" : "1");
                 delegate.setOpinion(request.getOpinion());
                 delegate.setStatus("0");
@@ -176,14 +183,15 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                     throw new IllegalArgumentException("转办需要选择目标用户");
                 }
                 addApproval(docType, docId, "6", request, user);
-                addCirculation(docType, docId, request.getTargetUserId(), request.getTargetUserName(), "0");
+                addCirculation(docType, docId, request.getTargetUserId(),
+                        resolveUserName(request.getTargetUserId(), request.getTargetUserName()), "0");
             } else if ("circulate".equals(action)) {
                 List<Long> ids = request.getTargetUserIds();
                 if (ids == null || ids.isEmpty()) {
                     throw new IllegalArgumentException("传阅需要选择接收人");
                 }
                 for (Long targetUserId : ids) {
-                    addCirculation(docType, docId, targetUserId, null, "0");
+                    addCirculation(docType, docId, targetUserId, resolveUserName(targetUserId, null), "0");
                 }
             } else if ("urge".equals(action)) {
                 OaDocReminder reminder = new OaDocReminder();
@@ -192,7 +200,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 reminder.setFromUserId(user.getUserId());
                 reminder.setFromUserName(user.getUsername());
                 reminder.setToUserId(request.getTargetUserId());
-                reminder.setToUserName(request.getTargetUserName());
+                reminder.setToUserName(resolveUserName(request.getTargetUserId(), request.getTargetUserName()));
                 reminder.setReminderContent(StringUtils.defaultIfBlank(request.getOpinion(), "请及时办理"));
                 reminder.setReminderTime(new Date());
                 reminder.setStatus("0");
@@ -260,6 +268,11 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
 
     @Override
     public List<OaDocReminder> getReminderList(String docType, Long docId) {
+        requireDocumentAccess(docType, docId);
+        return queryReminders(docType, docId);
+    }
+
+    private List<OaDocReminder> queryReminders(String docType, Long docId) {
         return reminderMapper.selectList(new LambdaQueryWrapper<OaDocReminder>()
                 .eq(docType != null && !docType.isEmpty(), OaDocReminder::getDocType, docType)
                 .eq(docId != null, OaDocReminder::getDocId, docId)
@@ -311,10 +324,11 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         if (assignment == null) {
             throw new AccessDeniedException("当前流程步骤未分配给该用户");
         }
-        assignment.setApproveResult(signing ? "2" : "1");
-        assignment.setApproveRemark(request == null ? null : request.getOpinion());
-        assignment.setApproveTime(new Date());
-        approvalMapper.updateById(assignment);
+        // 条件更新：同一步骤的其他处理人可能刚刚已经办完，必须确认记录仍是待办状态
+        if (approvalMapper.approveIfPending(assignment.getApprovalId(), signing ? "2" : "1",
+                request == null ? null : request.getOpinion(), user.getUsername()) != 1) {
+            throw new IllegalStateException("该步骤已被其他处理人办理，请刷新后重试");
+        }
 
         List<OaDocApproval> peers = approvalMapper.selectList(new LambdaQueryWrapper<OaDocApproval>()
                 .eq(OaDocApproval::getDocType, docType)
@@ -324,20 +338,18 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(OaDocApproval::getApproveResult, "0")
                 .ne(OaDocApproval::getApprovalId, assignment.getApprovalId()));
         for (OaDocApproval peer : peers) {
-            peer.setApproveResult("9");
-            peer.setApproveRemark("该步骤已由其他处理人办理");
-            peer.setApproveTime(new Date());
-            approvalMapper.updateById(peer);
+            // 并发下 peer 可能已经被本人办理，条件更新失败直接忽略
+            approvalMapper.approveIfPending(peer.getApprovalId(), "9", "该步骤已由其他处理人办理", user.getUsername());
         }
 
         OaDocFlowStep nextStep = findNextStep(flowId, stepOrder);
         if (nextStep != null) {
+            advanceFlowState(docType, docId, stepId, flowId, nextStep.getStepId(), nextStep.getStepOrder(), user.getUsername());
             assignStepToRole(docType, docId, flowId, nextStep, user.getUsername());
-            updateDocumentFlowState(docType, docId, flowId, nextStep.getStepId(), nextStep.getStepOrder(), user.getUsername());
             return;
         }
 
-        updateDocumentFlowState(docType, docId, flowId, null, stepOrder, user.getUsername());
+        advanceFlowState(docType, docId, stepId, flowId, null, stepOrder, user.getUsername());
         if (DOC_OUTGOING.equals(docType)) {
             int rows = outgoingDocMapper.signIfCurrent(docId, currentStatus, "2", user.getUserId(), user.getUsername());
             if (rows != 1) {
@@ -385,7 +397,15 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(OaDocFlow::getFlowType, docType)
                 .eq(OaDocFlow::getStatus, "0")
                 .orderByAsc(OaDocFlow::getFlowId));
-        return flows != null && flows.size() == 1 ? flows.get(0).getFlowId() : null;
+        if (flows == null || flows.isEmpty()) {
+            // 未配置流程时退化为自由签批，由 requireActionPermission 控制谁能办理
+            return null;
+        }
+        if (flows.size() > 1) {
+            // 之前这里静默返回 null，会让公文在“明明配了流程”的情况下仍然走自由签批，审批口径完全不可预期
+            throw new IllegalStateException("该文书方向配置了多个启用中的流程，请先停用多余流程或在公文上指定流程");
+        }
+        return flows.get(0).getFlowId();
     }
 
     private boolean hasFlowBinding(String docType, Long docId) {
@@ -464,12 +484,12 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         }
         if ("sign".equals(action)
                 && (isAssignedSigner(docType, docId, user.getUserId())
-                || isPendingApprover(docType, docId, user.getUserId(), request))) {
+                || isPendingApprover(docType, docId, user.getUserId()))) {
             return;
         }
         if ("approve".equals(action)
                 && (isAssignedHandler(docType, docId, user.getUserId())
-                || isPendingApprover(docType, docId, user.getUserId(), request))) {
+                || isPendingApprover(docType, docId, user.getUserId()))) {
             return;
         }
         if (Arrays.asList("complete", "countersign", "add_sign", "cancel_sign", "return", "transfer",
@@ -478,7 +498,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
             return;
         }
         if (Arrays.asList("countersign", "add_sign", "cancel_sign", "return").contains(action)
-                && isPendingApprover(docType, docId, user.getUserId(), request)) {
+                && isPendingApprover(docType, docId, user.getUserId())) {
             return;
         }
         throw new AccessDeniedException("当前用户无权处理该公文");
@@ -509,27 +529,34 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
             return false;
         }
         OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
-        if (doc == null) {
-            return false;
-        }
-        return Objects.equals(doc.getSignUserId(), userId)
-                || (doc.getSignUserId() == null && StringUtils.isNotBlank(doc.getCreateBy())
-                && doc.getCreateBy().equals(SecurityUtils.getUsername()));
+        // 只认公文上登记的签发人：允许未指定签发人时由起草人自签，等于起草、审核、签发三权合一
+        return doc != null && Objects.equals(doc.getSignUserId(), userId);
     }
 
-    private boolean isPendingApprover(String docType, Long docId, Long userId, DocActionRequest request) {
+    private void requireSignerAssigned(String docType, Long docId) {
+        if (!DOC_OUTGOING.equals(docType)) {
+            return;
+        }
+        OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
+        if (doc == null) {
+            throw new IllegalArgumentException("发文不存在");
+        }
+        if (doc.getSignUserId() == null) {
+            throw new IllegalStateException("请先指定发文签发人，起草人不能自签");
+        }
+    }
+
+    private boolean isPendingApprover(String docType, Long docId, Long userId) {
         if (userId == null) {
             return false;
         }
-        LambdaQueryWrapper<OaDocApproval> wrapper = new LambdaQueryWrapper<OaDocApproval>()
+        // 只有 '0' 才是待办；'5'(会签)/'7'(加签) 是已经写下的办理意见，不能当成待办反复使用
+        // stepId 也不再采信请求体：真正的步骤校验在 completeDocumentStep 里按公文当前步骤做
+        return approvalMapper.selectCount(new LambdaQueryWrapper<OaDocApproval>()
                 .eq(OaDocApproval::getDocType, docType)
                 .eq(OaDocApproval::getDocId, docId)
                 .eq(OaDocApproval::getUserId, userId)
-                .in(OaDocApproval::getApproveResult, Arrays.asList("0", "5", "7"));
-        if (request != null && request.getStepId() != null) {
-            wrapper.eq(OaDocApproval::getStepId, request.getStepId());
-        }
-        return approvalMapper.selectCount(wrapper) > 0;
+                .eq(OaDocApproval::getApproveResult, "0")) > 0;
     }
 
     private boolean isDocumentOwnerOrActiveDelegate(String docType, Long docId, LoginUser user) {
@@ -569,17 +596,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
 
     private void addApprovalForUser(String docType, Long docId, String result, DocActionRequest request,
                                     LoginUser operator, Long targetUserId, String targetUserName) {
-        OaDocApproval approval = new OaDocApproval();
-        approval.setDocId(docId);
-        approval.setDocType(docType);
-        approval.setFlowId(request.getFlowId());
-        approval.setStepId(request.getStepId());
-        approval.setUserId(targetUserId);
-        approval.setUserName(targetUserName);
-        approval.setApproveResult(result);
-        approval.setApproveRemark(request.getOpinion());
-        approval.setApproveTime(new Date());
-        approvalMapper.insert(approval);
+        insertApproval(docType, docId, result, request, targetUserId, resolveUserName(targetUserId, targetUserName));
     }
 
     private LoginUser requireUser() {
@@ -619,17 +636,109 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
     }
 
     private void addApproval(String docType, Long docId, String result, DocActionRequest request, LoginUser user) {
+        insertApproval(docType, docId, result, request, user.getUserId(), user.getUsername());
+    }
+
+    /**
+     * 写入一条签批记录。
+     *
+     * <p>flowId/stepId 一律取公文当前的流程状态，不接受请求体里的值：
+     * 客户端可以随意伪造这两个字段，把签批记录挂到别的步骤上污染办理轨迹。</p>
+     */
+    private void insertApproval(String docType, Long docId, String result, DocActionRequest request,
+                                Long userId, String userName) {
         OaDocApproval approval = new OaDocApproval();
         approval.setDocId(docId);
         approval.setDocType(docType);
-        approval.setFlowId(request.getFlowId());
-        approval.setStepId(request.getStepId());
-        approval.setUserId(user.getUserId());
-        approval.setUserName(user.getUsername());
+        approval.setFlowId(getDocumentFlowId(docType, docId));
+        approval.setStepId(getDocumentCurrentStepId(docType, docId));
+        approval.setUserId(userId);
+        approval.setUserName(userName);
         approval.setApproveResult(result);
-        approval.setApproveRemark(request.getOpinion());
+        approval.setApproveRemark(request == null ? null : request.getOpinion());
         approval.setApproveTime(new Date());
         approvalMapper.insert(approval);
+    }
+
+    /** 目标用户名一律按 ID 回查数据库，避免客户端把别人的名字写进办理轨迹 */
+    private String resolveUserName(Long userId, String fallback) {
+        if (userId == null) {
+            return fallback;
+        }
+        com.oa.system.domain.SysUser target = userMapper.selectById(userId);
+        if (target == null) {
+            throw new IllegalArgumentException("目标用户不存在: " + userId);
+        }
+        return target.getUsername();
+    }
+
+    /** 带乐观锁的流程推进：公文已经不在 expectedStepId 说明有人抢先办理，直接失败回滚 */
+    private void advanceFlowState(String docType, Long docId, Long expectedStepId, Long flowId,
+                                  Long stepId, Integer stepOrder, String username) {
+        int rows;
+        if (DOC_INCOMING.equals(docType)) {
+            rows = incomingDocMapper.advanceFlowStateIfCurrent(docId, expectedStepId, flowId, stepId, stepOrder, username);
+        } else {
+            rows = outgoingDocMapper.advanceFlowStateIfCurrent(docId, expectedStepId, flowId, stepId, stepOrder, username);
+        }
+        if (rows != 1) {
+            throw new IllegalStateException("公文流程已被其他处理人推进，请刷新后重试");
+        }
+    }
+
+    /**
+     * 单份公文的读取权限。
+     *
+     * <p>公文中心对普通用户也是开放的，不能只靠 oa:doc:list 就把任意公文的
+     * 审批意见、传阅名单、委托关系全部拿到。</p>
+     */
+    private void requireDocumentAccess(String docType, Long docId) {
+        LoginUser user = requireUser();
+        if (SecurityUtils.isAdmin(user.getUserId())) {
+            return;
+        }
+        if (hasPermission(user, DOC_INCOMING.equals(docType) ? "oa:incomingDoc:list" : "oa:outgoingDoc:list")) {
+            return;
+        }
+        if (isDocumentOwnerOrActiveDelegate(docType, docId, user) || isParticipant(docType, docId, user.getUserId())) {
+            return;
+        }
+        throw new AccessDeniedException("无权查看该公文的办理过程");
+    }
+
+    /** 是否在该公文的办理过程里出现过：签批、传阅、催办、委托任一环节都算参与人 */
+    private boolean isParticipant(String docType, Long docId, Long userId) {
+        if (userId == null) {
+            return false;
+        }
+        if (approvalMapper.selectCount(new LambdaQueryWrapper<OaDocApproval>()
+                .eq(OaDocApproval::getDocType, docType)
+                .eq(OaDocApproval::getDocId, docId)
+                .eq(OaDocApproval::getUserId, userId)) > 0) {
+            return true;
+        }
+        if (circulationMapper.selectCount(new LambdaQueryWrapper<OaDocCirculation>()
+                .eq(OaDocCirculation::getDocType, docType)
+                .eq(OaDocCirculation::getDocId, docId)
+                .eq(OaDocCirculation::getUserId, userId)) > 0) {
+            return true;
+        }
+        if (reminderMapper.selectCount(new LambdaQueryWrapper<OaDocReminder>()
+                .eq(OaDocReminder::getDocType, docType)
+                .eq(OaDocReminder::getDocId, docId)
+                .and(query -> query.eq(OaDocReminder::getFromUserId, userId)
+                        .or().eq(OaDocReminder::getToUserId, userId))) > 0) {
+            return true;
+        }
+        return delegateMapper.selectCount(new LambdaQueryWrapper<OaDocDelegate>()
+                .eq(OaDocDelegate::getDocType, docType)
+                .eq(OaDocDelegate::getDocId, docId)
+                .and(query -> query.eq(OaDocDelegate::getFromUserId, userId)
+                        .or().eq(OaDocDelegate::getToUserId, userId))) > 0;
+    }
+
+    private boolean hasPermission(LoginUser user, String permission) {
+        return user.getPermissions() != null && user.getPermissions().contains(permission);
     }
 
     private void addCirculation(String docType, Long docId, Long userId, String userName, String readStatus) {
