@@ -33,9 +33,10 @@ public class OaAnnouncementController extends BaseController {
         return getDataTable(list);
     }
 
-    @GetMapping("/unreadCount")
-    public AjaxResult unreadCount() {
-        return AjaxResult.success(0);
+    /** 当前生效且对当前用户可见的公告数（系统未记录逐人已读状态，不能叫未读数） */
+    @GetMapping("/effectiveCount")
+    public AjaxResult effectiveCount() {
+        return AjaxResult.success(announcementService.countEffectiveAnnouncements());
     }
 
     @PreAuthorize("@ss.hasPermi('oa:announcement:query')")

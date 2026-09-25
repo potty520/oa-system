@@ -7,9 +7,11 @@ import com.oa.oa.domain.OaLeave;
 import com.oa.oa.mapper.OaLeaveMapper;
 import com.oa.oa.service.IOaLeaveService;
 import com.oa.security.model.LoginUser;
+import com.oa.security.service.DataScopeResolver;
 import com.oa.security.utils.AccessGuards;
 import com.oa.security.utils.SecurityUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,9 @@ import java.util.List;
 @Service
 public class OaLeaveServiceImpl extends ServiceImpl<OaLeaveMapper, OaLeave> implements IOaLeaveService {
 
+    @Autowired
+    private DataScopeResolver dataScopeResolver;
+
     @Override
     public List<OaLeave> selectOaLeaveList(OaLeave leave) {
         LambdaQueryWrapper<OaLeave> wrapper = new LambdaQueryWrapper<>();
@@ -26,6 +31,7 @@ public class OaLeaveServiceImpl extends ServiceImpl<OaLeaveMapper, OaLeave> impl
                 .eq(StringUtils.isNotBlank(leave.getApprovalStatus()), OaLeave::getApprovalStatus, leave.getApprovalStatus())
                 .eq(leave.getUserId() != null, OaLeave::getUserId, leave.getUserId())
                 .orderByDesc(OaLeave::getApplyTime);
+        dataScopeResolver.apply(wrapper, OaLeave::getUserId, OaLeave::getDeptId);
         return baseMapper.selectList(wrapper);
     }
 

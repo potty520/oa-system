@@ -8,6 +8,7 @@ import java.util.List;
 public interface IOaAnnouncementService extends IService<OaAnnouncement> {
     List<OaAnnouncement> selectOaAnnouncementList(OaAnnouncement announcement);
     List<OaAnnouncement> selectPublishedAnnouncementList(OaAnnouncement announcement);
+    long countEffectiveAnnouncements();
     OaAnnouncement selectOaAnnouncementById(Long annId);
     int insertOaAnnouncement(OaAnnouncement announcement);
     int updateOaAnnouncement(OaAnnouncement announcement);

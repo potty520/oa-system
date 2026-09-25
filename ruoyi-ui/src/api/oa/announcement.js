@@ -46,9 +46,10 @@ export function remove(id) {
   })
 }
 
-export function getUnreadCount() {
+// 当前生效且可见的公告数（后端未记录逐人已读状态，不是未读数）
+export function getEffectiveCount() {
   return request({
-    url: '/oa/announcement/unreadCount',
+    url: '/oa/announcement/effectiveCount',
     method: 'get'
   })
 }

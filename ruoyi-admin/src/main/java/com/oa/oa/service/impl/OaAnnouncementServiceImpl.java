@@ -20,6 +20,9 @@ public class OaAnnouncementServiceImpl extends ServiceImpl<OaAnnouncementMapper,
     /** 已发布 */
     private static final String STATUS_PUBLISHED = "1";
 
+    /** 公开可见 */
+    private static final String IS_PUBLIC_YES = "1";
+
     @Override
     public List<OaAnnouncement> selectOaAnnouncementList(OaAnnouncement announcement) {
         LambdaQueryWrapper<OaAnnouncement> wrapper = new LambdaQueryWrapper<>();
@@ -33,14 +36,37 @@ public class OaAnnouncementServiceImpl extends ServiceImpl<OaAnnouncementMapper,
     @Override
     public List<OaAnnouncement> selectPublishedAnnouncementList(OaAnnouncement announcement) {
         LambdaQueryWrapper<OaAnnouncement> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(OaAnnouncement::getStatus, "1")
-                .le(OaAnnouncement::getPublishStartTime, new Date())
-                .ge(OaAnnouncement::getPublishEndTime, new Date())
+        wrapper.eq(OaAnnouncement::getStatus, STATUS_PUBLISHED)
                 .like(StringUtils.isNotBlank(announcement.getAnnTitle()), OaAnnouncement::getAnnTitle, announcement.getAnnTitle())
                 .eq(StringUtils.isNotBlank(announcement.getAnnType()), OaAnnouncement::getAnnType, announcement.getAnnType())
                 .orderByDesc(OaAnnouncement::getIsTop)
                 .orderByDesc(OaAnnouncement::getCreateTime);
+        applyEffectiveAndPublic(wrapper);
         return baseMapper.selectList(wrapper);
+    }
+
+    @Override
+    public long countEffectiveAnnouncements() {
+        LambdaQueryWrapper<OaAnnouncement> wrapper = new LambdaQueryWrapper<>();
+        applyEffectiveAndPublic(wrapper);
+        Long count = baseMapper.selectCount(wrapper);
+        return count == null ? 0L : count;
+    }
+
+    /**
+     * 只保留当前生效且允许对外公开的公告。
+     *
+     * <p>该查询条件用于匿名可访问的 {@code /oa/announcement/published} 接口，
+     * 因此必须叠加 is_public，否则内部公告会泄露给未登录访问者。</p>
+     */
+    private void applyEffectiveAndPublic(LambdaQueryWrapper<OaAnnouncement> wrapper) {
+        Date now = new Date();
+        wrapper.eq(OaAnnouncement::getIsPublic, IS_PUBLIC_YES)
+                // 未填发布时间窗视为长期有效；直接用 <=/>= 会把 NULL 行永久过滤掉
+                .and(query -> query.isNull(OaAnnouncement::getPublishStartTime)
+                        .or().le(OaAnnouncement::getPublishStartTime, now))
+                .and(query -> query.isNull(OaAnnouncement::getPublishEndTime)
+                        .or().ge(OaAnnouncement::getPublishEndTime, now));
     }
 
     @Override

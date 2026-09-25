@@ -6,7 +6,7 @@
     </div>
     <el-row :gutter="20" class="card-row">
       <el-col :span="8"><el-card shadow="hover"><div class="stat"><div class="number">{{ stats.todoCount }}</div><div class="label">待办事项</div></div></el-card></el-col>
-      <el-col :span="8"><el-card shadow="hover"><div class="stat"><div class="number">{{ stats.announcementCount }}</div><div class="label">未读公告</div></div></el-card></el-col>
+      <el-col :span="8"><el-card shadow="hover"><div class="stat"><div class="number">{{ stats.announcementCount }}</div><div class="label">生效公告</div></div></el-card></el-col>
       <el-col :span="8"><el-card shadow="hover"><div class="stat"><div class="number">{{ stats.unreadCirculation }}</div><div class="label">未读传阅</div></div></el-card></el-col>
     </el-row>
     <el-row :gutter="20">
@@ -20,7 +20,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { dashboardStats } from '@/api/oa/docProcess'
-import { getUnreadCount } from '@/api/oa/announcement'
+import { getEffectiveCount } from '@/api/oa/announcement'
 
 export default {
   name: 'Dashboard',
@@ -37,7 +37,7 @@ export default {
   methods: {
     loadStats() {
       dashboardStats().then(res => { this.stats = { ...this.stats, ...(res.data || {}) } }).catch(() => {})
-      getUnreadCount().then(res => { this.stats.announcementCount = res.data || 0 }).catch(() => {})
+      getEffectiveCount().then(res => { this.stats.announcementCount = res.data || 0 }).catch(() => {})
     }
   }
 }

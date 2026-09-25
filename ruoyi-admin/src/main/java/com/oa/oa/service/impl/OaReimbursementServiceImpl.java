@@ -11,6 +11,7 @@ import com.oa.oa.mapper.OaReimbursementMapper;
 import com.oa.oa.service.IOaReimbursementService;
 import com.oa.common.constant.ApprovalStatus;
 import com.oa.security.model.LoginUser;
+import com.oa.security.service.DataScopeResolver;
 import com.oa.security.utils.AccessGuards;
 import com.oa.security.utils.SecurityUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -32,6 +33,9 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
     @Autowired
     private OaReimbursementApproveLogMapper approveLogMapper;
 
+    @Autowired
+    private DataScopeResolver dataScopeResolver;
+
     @Override
     public List<OaReimbursement> selectOaReimbursementList(OaReimbursement reimbursement) {
         LambdaQueryWrapper<OaReimbursement> wrapper = new LambdaQueryWrapper<>();
@@ -39,6 +43,7 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
                 .eq(StringUtils.isNotBlank(reimbursement.getApprovalStatus()), OaReimbursement::getApprovalStatus, reimbursement.getApprovalStatus())
                 .eq(reimbursement.getUserId() != null, OaReimbursement::getUserId, reimbursement.getUserId())
                 .orderByDesc(OaReimbursement::getApplyTime);
+        dataScopeResolver.apply(wrapper, OaReimbursement::getUserId, OaReimbursement::getDeptId);
         return baseMapper.selectList(wrapper);
     }
 

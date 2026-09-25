@@ -5,9 +5,11 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oa.oa.domain.OaSchedule;
 import com.oa.oa.mapper.OaScheduleMapper;
 import com.oa.oa.service.IOaScheduleService;
+import com.oa.security.service.DataScopeResolver;
 import com.oa.security.utils.AccessGuards;
 import com.oa.security.utils.SecurityUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,6 +20,9 @@ public class OaScheduleServiceImpl extends ServiceImpl<OaScheduleMapper, OaSched
     /** 已取消 */
     private static final String STATUS_CANCELLED = "3";
 
+    @Autowired
+    private DataScopeResolver dataScopeResolver;
+
     @Override
     public List<OaSchedule> selectOaScheduleList(OaSchedule schedule) {
         LambdaQueryWrapper<OaSchedule> wrapper = new LambdaQueryWrapper<>();
@@ -25,6 +30,8 @@ public class OaScheduleServiceImpl extends ServiceImpl<OaScheduleMapper, OaSched
                 .eq(StringUtils.isNotBlank(schedule.getScheduleType()), OaSchedule::getScheduleType, schedule.getScheduleType())
                 .eq(StringUtils.isNotBlank(schedule.getStatus()), OaSchedule::getStatus, schedule.getStatus())
                 .orderByAsc(OaSchedule::getStartTime);
+        // oa_schedule 没有部门列，只能按归属人过滤
+        dataScopeResolver.apply(wrapper, OaSchedule::getUserId, null);
         return baseMapper.selectList(wrapper);
     }
 
