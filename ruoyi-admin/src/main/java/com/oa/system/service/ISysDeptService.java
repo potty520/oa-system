@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface ISysDeptService extends IService<SysDept> {
     List<SysDept> selectDeptList(SysDept dept);
+    int changeStatus(Long deptId, String status);
 }

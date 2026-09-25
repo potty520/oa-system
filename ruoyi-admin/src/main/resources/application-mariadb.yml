@@ -2,11 +2,11 @@ spring:
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
     driver-class-name: org.mariadb.jdbc.Driver
-    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:oa_system}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+    url: jdbc:mariadb://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:oa_system}?useUnicode=true&characterEncoding=utf8&useSSL=${DB_USE_SSL:false}&serverTimezone=Asia/Shanghai
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
   sql:
     init:
-      mode: always
+      mode: ${DB_INIT_MODE:always}
       encoding: UTF-8
       schema-locations: classpath:db/mariadb/schema.sql

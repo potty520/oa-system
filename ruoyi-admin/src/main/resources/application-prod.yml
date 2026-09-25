@@ -1,8 +1,17 @@
+# 生产配置：所有连接参数一律走环境变量，不在仓库里写死主机/账号。
+# 默认开启数据库 TLS 且不再允许公链拉取；确实跑在无 TLS 的内网实例上时才降级为
+#   DB_USE_SSL=false DB_ALLOW_PUBLIC_KEY_RETRIEVAL=true
+# 建库/升级脚本默认不在启动时重跑，需要初始化新库时显式设 DB_INIT_MODE=always。
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/oa_system?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
-    username: root
+    type: com.zaxxer.hikari.HikariDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:oa_system}?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=${DB_USE_SSL:true}&serverTimezone=${DB_TIMEZONE:GMT%2B8}&allowPublicKeyRetrieval=${DB_ALLOW_PUBLIC_KEY_RETRIEVAL:false}
+    username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD}
+  sql:
+    init:
+      mode: ${DB_INIT_MODE:never}
 
 mybatis-plus:
   configuration:

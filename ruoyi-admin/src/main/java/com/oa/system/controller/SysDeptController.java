@@ -56,6 +56,6 @@ public class SysDeptController extends BaseController {
     @PreAuthorize("@ss.hasPermi('system:dept:edit')")
     @PutMapping("/changeStatus")
     public AjaxResult changeStatus(@RequestBody SysDept dept) {
-        return toAjax(deptService.updateById(dept));
+        return toAjax(deptService.changeStatus(dept.getDeptId(), dept.getStatus()));
     }
 }

@@ -46,7 +46,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (StringUtils.hasText(token) && !jwtTokenBlacklist.isRevoked(token) && jwtUtils.validateToken(token)) {
             Claims claims = jwtUtils.parseToken(token);
             String username = claims.getSubject();
-            if (username != null) {
+            // 改密/重置密码/停用之后旧 Token 必须立刻失效，这里按签发时间再校验一次用户级吊销
+            if (username != null && !jwtTokenBlacklist.isUserRevoked(username, claims.getIssuedAt())) {
                 LoginUser loginUser = loginUserCache.get(username, () -> userService.selectUserByUsername(username));
                 if (loginUser != null && loginUser.isEnabled()) {
                     List<SimpleGrantedAuthority> authorities = new ArrayList<>();

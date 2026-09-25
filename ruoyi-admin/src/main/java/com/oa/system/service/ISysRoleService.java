@@ -10,4 +10,5 @@ public interface ISysRoleService extends IService<SysRole> {
     SysRole selectRoleById(Long roleId);
     int saveRole(SysRole role);
     int updateRole(SysRole role);
+    int changeStatus(Long roleId, String status);
 }

@@ -61,6 +61,6 @@ public class SysRoleController extends BaseController {
     @PreAuthorize("@ss.hasPermi('system:role:edit')")
     @PutMapping("/changeStatus")
     public AjaxResult changeStatus(@RequestBody SysRole role) {
-        return toAjax(roleService.updateById(role));
+        return toAjax(roleService.changeStatus(role.getRoleId(), role.getStatus()));
     }
 }

@@ -127,7 +127,11 @@ export default {
           this.pwdLoading = false
           this.pwdDialogVisible = false
           this.$store.commit('user/SET_MUST_CHANGE_PWD', false)
-          this.$message.success('密码修改成功')
+          this.$message.success('密码修改成功，请使用新密码重新登录')
+          // 后端已作废改密前签发的全部 Token，这里主动退回登录页
+          this.$store.dispatch('user/Logout').then(() => {
+            location.href = '/'
+          })
         }).catch(() => {
           this.pwdLoading = false
         })

@@ -2,6 +2,7 @@ package com.oa.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.oa.common.constant.Constants;
 import com.oa.security.service.LoginUserCache;
 import com.oa.system.domain.SysRole;
 import com.oa.system.mapper.SysRoleMapper;
@@ -15,6 +16,9 @@ import java.util.List;
 
 @Service
 public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> implements ISysRoleService {
+
+    /** 内置超级管理员角色，停用后没人能再进系统管理 */
+    private static final long BUILT_IN_ADMIN_ROLE_ID = 1L;
 
     @org.springframework.beans.factory.annotation.Autowired
     private LoginUserCache loginUserCache;
@@ -63,6 +67,30 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
             baseMapper.deleteRoleMenuByRoleId(role.getRoleId());
         }
         saveMenus(role.getRoleId(), role.getMenuIds());
+        loginUserCache.evictAll();
+        return rows;
+    }
+
+    @Override
+    public int changeStatus(Long roleId, String status) {
+        if (roleId == null) {
+            throw new IllegalArgumentException("角色ID不能为空");
+        }
+        if (!Constants.STATUS_NORMAL.equals(status) && !Constants.STATUS_DISABLE.equals(status)) {
+            throw new IllegalArgumentException("角色状态只能是正常或停用");
+        }
+        SysRole existing = baseMapper.selectById(roleId);
+        if (existing == null) {
+            return 0;
+        }
+        if (roleId == BUILT_IN_ADMIN_ROLE_ID && Constants.STATUS_DISABLE.equals(status)) {
+            throw new IllegalArgumentException("内置超级管理员角色不允许停用");
+        }
+        // 只更新状态列：直接把请求体丢给 updateById 会连带改掉 dataScope、roleKey 等敏感字段
+        SysRole update = new SysRole();
+        update.setRoleId(roleId);
+        update.setStatus(status);
+        int rows = baseMapper.updateById(update);
         loginUserCache.evictAll();
         return rows;
     }

@@ -7,6 +7,6 @@ spring:
     password:
   sql:
     init:
-      mode: always
+      mode: ${DB_INIT_MODE:always}
       encoding: UTF-8
       schema-locations: classpath:db/h2/schema.sql

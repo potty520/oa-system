@@ -13,6 +13,9 @@ import java.util.List;
 
 public class BaseController {
 
+    /** 单页最大条数：pageSize 完全由客户端传，不设上限等于把全表拉取的开关交出去 */
+    private static final int MAX_PAGE_SIZE = 500;
+
     protected void startPage() {
         PageHelper.startPage(getPageNum(), getPageSize());
     }
@@ -40,7 +43,7 @@ public class BaseController {
     }
 
     public int getPageSize() {
-        return getIntParameter("pageSize", 10);
+        return Math.min(getIntParameter("pageSize", 10), MAX_PAGE_SIZE);
     }
 
     private int getIntParameter(String name, int defaultValue) {
