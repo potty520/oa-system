@@ -9,10 +9,57 @@ if(-not $AdminPassword){throw '请用 -AdminPassword 或环境变量 OA_INIT_ADM
 if(-not $CommonPassword){throw '请用 -CommonPassword 或环境变量 OA_INIT_ZHANGSAN_PASSWORD 提供 zhangsan 密码'}
 $suffix=[DateTimeOffset]::Now.ToUnixTimeSeconds()
 $results=New-Object System.Collections.Generic.List[object]
-function Check($name,$condition,$detail=''){ $state=$(if($condition){'PASS'}else{'FAIL'}); Write-Host "$state $name $detail"; $results.Add([pscustomobject]@{Test=$name;Result=$state;Detail=$detail})|Out-Null; if(-not $condition){throw "FAILED: $name $detail"} }
-function Api($method,$path,$body,$token){$headers=@{};if($token){$headers.Authorization='Bearer '+$token};$p=@{Uri=$BaseUrl+$path;Method=$method;Headers=$headers;TimeoutSec=15};if($null -ne $body){$p.ContentType='application/json';$p.Body=$body|ConvertTo-Json -Depth 12 -Compress};try{Invoke-RestMethod @p}catch{$status=[int]$_.Exception.Response.StatusCode; [pscustomobject]@{code=$status;msg=$_.Exception.Message}}}
+function Check($name,$condition,$detail=''){ $state=$(if($condition){'PASS'}else{'FAIL'}); Write-Host "$state $name $detail"; $results.Add([pscustomobject]@{Test=$name;Result=$state;Detail=$detail})|Out-Null }
+function Api($method,$path,$body,$token){
+  $headers=@{}; if($token){$headers.Authorization='Bearer '+$token}
+  $p=@{Uri=$BaseUrl+$path;Method=$method;Headers=$headers;TimeoutSec=20;UseBasicParsing=$true}
+  if($null -ne $body){
+    $json=$body|ConvertTo-Json -Depth 12 -Compress
+    # 显式声明 charset 并以 UTF-8 字节发送：否则 PS 5.1 按 ISO-8859-1 编码，中文会被服务端存成乱码
+    $p.ContentType='application/json; charset=utf-8'
+    $p.Body=[System.Text.Encoding]::UTF8.GetBytes($json)
+  }
+  try {
+    $r=Invoke-WebRequest @p
+    $text=[System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray())
+    if([string]::IsNullOrWhiteSpace($text)){ return $null }
+    return $text|ConvertFrom-Json
+  } catch {
+    $status=[int]$_.Exception.Response.StatusCode
+    $msg=$_.Exception.Message
+    try {
+      $sr=New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream(),[System.Text.Encoding]::UTF8)
+      $body2=$sr.ReadToEnd(); if(-not [string]::IsNullOrWhiteSpace($body2)){ $msg=$body2 }
+    } catch {}
+    [pscustomobject]@{code=$status;msg=$msg}
+  }
+}
+# 控制台按 UTF-8 输出，否则中文提示在日志里是乱码（断言只比较 code，不影响判定）
+try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}
+# PS 5.1 的 Invoke-RestMethod 没有 -Form 参数（仅 PS 7 有），这里手工拼 multipart/form-data
+function UploadFile($url,$filePath,$fields,$token){
+  $boundary=[System.Guid]::NewGuid().ToString('N'); $LF="`r`n"; $enc=[System.Text.Encoding]::UTF8
+  $ms=New-Object System.IO.MemoryStream
+  $fileName=[System.IO.Path]::GetFileName($filePath)
+  $pre="--$boundary$LF"+"Content-Disposition: form-data; name=`"file`"; filename=`"$fileName`"$LF"+"Content-Type: application/octet-stream$LF$LF"
+  $b=$enc.GetBytes($pre); $ms.Write($b,0,$b.Length)
+  $fb=[System.IO.File]::ReadAllBytes($filePath); $ms.Write($fb,0,$fb.Length)
+  foreach($k in $fields.Keys){
+    $part="$LF--$boundary$LF"+"Content-Disposition: form-data; name=`"$k`"$LF$LF"+"$($fields[$k])"
+    $b=$enc.GetBytes($part); $ms.Write($b,0,$b.Length)
+  }
+  $b=$enc.GetBytes("$LF--$boundary--$LF"); $ms.Write($b,0,$b.Length)
+  $body=$ms.ToArray(); $ms.Dispose()
+  try {
+    $r=Invoke-WebRequest -Uri $url -Method Post -Headers @{Authorization='Bearer '+$token} -ContentType "multipart/form-data; boundary=$boundary" -Body $body -UseBasicParsing -TimeoutSec 30
+    return ([System.Text.Encoding]::UTF8.GetString($r.RawContentStream.ToArray()))|ConvertFrom-Json
+  }
+  catch { $s=[int]$_.Exception.Response.StatusCode; [pscustomobject]@{code=$s;msg=$_.Exception.Message} }
+}
 $admin=Api Post '/login' @{username='admin';password=$AdminPassword} $null; $token=$admin.data.token
-$register=Api Post '/register' @{userName="anonymous$suffix";nickName='匿名';password='Test123456'} $null; Check '匿名注册拦截' ($register.code -eq 403) $register.msg
+# 第 11 轮起 /register 不再匿名开放（要求 system:user:add），且已被移出 SecurityConfig 白名单，
+# 因此匿名调用在鉴权过滤器阶段即返回 401（此前是 403）。两者都表示"匿名不可注册"。
+$register=Api Post '/register' @{userName="anonymous$suffix";nickName='匿名';password='Test123456'} $null; Check '匿名注册拦截' ($register.code -eq 401 -or $register.code -eq 403) $register.msg
 $probeUser="missing-user-$suffix"; $probeCode=0; foreach($attempt in 1..5){$probe=Api Post '/login' @{username=$probeUser;password='wrong-password'} $null; $probeCode=$probe.code}; Check '登录失败计数' ($probeCode -eq 400) "code=$probeCode"
 $locked=Api Post '/login' @{username=$probeUser;password='wrong-password'} $null; Check '登录失败锁定' ($locked.code -eq 429) $locked.msg
 # Duplicate and empty data validation
@@ -27,8 +74,20 @@ Api Post ("/oa/doc/action/1/$inId") @{action='receive'} $token|Out-Null
 $ret=Api Post ("/oa/doc/action/1/$inId") @{action='return';opinion='退回修改'} $token; Check '收文退回' ($ret.code -eq  200)
 $trans=Api Post ("/oa/doc/action/1/$inId") @{action='transfer';targetUserId=2;targetUserName='张三';opinion='转办'} $token; Check '收文转办' ($trans.code -eq  200)
 $add=Api Post ("/oa/doc/action/1/$inId") @{action='add_sign';targetUserIds=@(2,3);opinion='加签'} $token; Check '多用户加签' ($add.code -eq  200)
+# 撤签撤的是「流程派发出来的待办」记录（approve_result='0'）；加签/会签写入的是已办结的办理意见（'5'/'7'），
+# 按设计不可撤。而 $inId 这条收文没有绑定流程、从来没有待办可撤，所以下面单独造一条绑定流程的收文来验证撤签。
+$csFlowName="CANCELSIGN-FLOW-$suffix"; Api Post '/oa/docFlow' @{flowName=$csFlowName;flowType='1';description='撤签回归';status='0';steps=@(@{stepName='承办';stepOrder=1;roleId=2;isSign='1'})} $token|Out-Null
+$csFlowList=Api Get ("/oa/docFlow/list?pageNum=1&pageSize=20&flowName=$csFlowName") $null $token; $csFlowId=($csFlowList.rows|Select-Object -First 1).flowId
+$csDocNum="CANCELSIGN-DOC-$suffix"; Api Post '/oa/incomingDoc' @{docNumber=$csDocNum;docTitle='撤签验证收文';sourceUnit='测试单位';receiveDate='2026-09-20';docLevel='1';docSecret='1';summary='撤签';status='0';flowId=$csFlowId} $token|Out-Null
+$csDocList=Api Get ("/oa/incomingDoc/list?pageNum=1&pageSize=20&docNumber=$csDocNum") $null $token; $csDocId=($csDocList.rows|Select-Object -First 1).docId
+Api Post ("/oa/doc/action/1/$csDocId") @{action='receive'} $token|Out-Null
+$csTl=Api Get ("/oa/doc/timeline/1/$csDocId") $null $token; $csPending=@($csTl.data.approvals|Where-Object {$_.approveResult -eq '0'})|Select-Object -First 1
+Check '流程派发产生待办签批' ($null -ne $csPending.approvalId) "approvalId=$($csPending.approvalId)"
+$cancel=Api Post ("/oa/doc/action/1/$csDocId") @{action='cancel_sign';approvalId=$csPending.approvalId;opinion='撤签'} $token; Check '撤签待办签批' ($cancel.code -eq  200) $cancel.msg
+$cancelAgain=Api Post ("/oa/doc/action/1/$csDocId") @{action='cancel_sign';approvalId=$csPending.approvalId;opinion='重复撤签'} $token; Check '重复撤签被拒' ($cancelAgain.code -eq  400) $cancelAgain.msg
 $tl=Api Get ("/oa/doc/timeline/1/$inId") $null $token; $sign=@($tl.data.approvals|Where-Object {$_.approveResult -eq '7'})|Select-Object -First 1
-$cancel=Api Post ("/oa/doc/action/1/$inId") @{action='cancel_sign';approvalId=$sign.approvalId;opinion='撤签'} $token; Check '撤签' ($cancel.code -eq  200)
+Check '加签产生已办结签批记录' ($null -ne $sign.approvalId) "approvalId=$($sign.approvalId)"
+$cancelDone=Api Post ("/oa/doc/action/1/$inId") @{action='cancel_sign';approvalId=$sign.approvalId;opinion='撤已办理'} $token; Check '已办结签批不可撤' ($cancelDone.code -eq  400) $cancelDone.msg
 $counter=Api Post ("/oa/doc/action/1/$inId") @{action='countersign';targetUserIds=@(2,3);opinion='多人会签'} $token; Check '多用户会签' ($counter.code -eq  200)
 $delegate=Api Post ("/oa/doc/action/1/$inId") @{action='delegate';targetUserId=2;targetUserName='张三';opinion='委托'} $token; Check '委托' ($delegate.code -eq  200)
 $agent=Api Post ("/oa/doc/action/1/$inId") @{action='agent';targetUserId=3;targetUserName='李四';opinion='代理'} $token; Check '代理' ($agent.code -eq  200)
@@ -38,7 +97,8 @@ Api Post ("/oa/doc/action/1/$inId") @{action='complete'} $token|Out-Null
 Api Post ("/oa/doc/action/1/$inId") @{action='archive';archiveCode="P2-ARCH-IN-$suffix";archiveLocation='档案室'} $token|Out-Null
 $tl2=Api Get ("/oa/doc/timeline/1/$inId") $null $token; Check '收文流程记录完整' (@($tl2.data.approvals).Count  -ge  5 -and @($tl2.data.delegates).Count  -eq  2) "approvals=$(@($tl2.data.approvals).Count) delegates=$(@($tl2.data.delegates).Count)"
 # Outgoing workflow
-$outNum="P2-OUT-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$outNum;docTitle="P2发文$suffix";draftUnit='测试部门';draftDate='2026-09-20';docLevel='1';docSecret='1';mainSend='测试单位';summary='测试';status='0'} $token|Out-Null
+# 发文提交要求先指定签发人（requireSignerAssigned），且签发人不能是起草人本人，因此这里指定 userId=2
+$outNum="P2-OUT-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$outNum;docTitle="P2发文$suffix";draftUnit='测试部门';draftDate='2026-09-20';docLevel='1';docSecret='1';mainSend='测试单位';summary='测试';signUserId=2;status='0'} $token|Out-Null
 $outList=Api Get ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=$outNum") $null $token; $outDoc=$outList.rows|Select-Object -First 1; $outId=$outDoc.docId
 $badSign=Api Post ("/oa/doc/action/2/$outId") @{action='sign'} $token; Check '非法状态签发拦截' ($badSign.code -eq  400) $badSign.msg
 Api Post ("/oa/doc/action/2/$outId") @{action='submit'} $token|Out-Null
@@ -68,7 +128,8 @@ $unauthorizedAction=Api Post ("/oa/doc/action/1/$unauthDocId") @{action='receive
 $flowName="AUTO-FLOW-$suffix"; Api Post '/oa/docFlow' @{flowName=$flowName;flowType='2';description='自动流转回归';status='0';steps=@(@{stepName='领导签发';stepOrder=1;roleId=2;isSign='1'})} $token|Out-Null
 $flowList=Api Get ("/oa/docFlow/list?pageNum=1&pageSize=20&flowName=$flowName") $null $token; $deniedFlowId=($flowList.rows|Select-Object -First 1).flowId
 $flowInfo=Api Get ("/oa/docFlow/$deniedFlowId") $null $token; $deniedStepId=($flowInfo.data.steps|Select-Object -First 1).stepId
-$flowDocNum="AUTO-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$flowDocNum;docTitle='自动流转测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;flowId=$deniedFlowId;mainSend='测试单位';status='0'} $token|Out-Null
+# 流程类发文同样要先指定签发人（且不能是起草人），否则 submit 会失败、流程不会分派
+$flowDocNum="AUTO-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$flowDocNum;docTitle='自动流转测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;flowId=$deniedFlowId;mainSend='测试单位';signUserId=2;status='0'} $token|Out-Null
 $flowDocList=Api Get ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=$flowDocNum") $null $token; $flowDocId=($flowDocList.rows|Select-Object -First 1).docId
 Api Post ("/oa/doc/action/2/$flowDocId") @{action='submit'} $token|Out-Null
 $todoList=Api Get '/oa/todo/list?pageNum=1&pageSize=100' $null $zh
@@ -80,7 +141,7 @@ Check '流程末步骤自动完成' ($flowDocAfter.data.status -eq '2' -and $flo
 
 $adminFlowName="BINDING-FLOW-$suffix"; Api Post '/oa/docFlow' @{flowName=$adminFlowName;flowType='2';description='绑定回归';status='0';steps=@(@{stepName='管理员步骤';stepOrder=1;roleId=1;isSign='1'})} $token|Out-Null
 $adminFlowList=Api Get ("/oa/docFlow/list?pageNum=1&pageSize=20&flowName=$adminFlowName") $null $token; $adminFlowId=($adminFlowList.rows|Select-Object -First 1).flowId
-$bindingDocNum="BINDING-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$bindingDocNum;docTitle='流程绑定越权测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;flowId=$adminFlowId;mainSend='测试单位';status='0'} $token|Out-Null
+$bindingDocNum="BINDING-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$bindingDocNum;docTitle='流程绑定越权测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;flowId=$adminFlowId;mainSend='测试单位';signUserId=2;status='0'} $token|Out-Null
 $bindingList=Api Get ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=$bindingDocNum") $null $token; $bindingDocId=($bindingList.rows|Select-Object -First 1).docId
 Api Post ("/oa/doc/action/2/$bindingDocId") @{action='submit'} $token|Out-Null
 $flowBypass=Api Post ("/oa/doc/action/2/$bindingDocId") @{action='sign';flowId=$deniedFlowId;stepId=$deniedStepId;opinion='流程角色越权'} $zh
@@ -170,11 +231,11 @@ $badDocType=Api Post ("/oa/doc/action/9/$inId") @{action='receive'} $token; Chec
 $tempFile=Join-Path (Resolve-Path 'ruoyi-admin\target').Path ("phase2-upload-$suffix.txt")
 [System.IO.File]::WriteAllText($tempFile,'phase2 upload permission test')
 $fileName=[System.IO.Path]::GetFileName($tempFile)
-$upload=Invoke-RestMethod -Uri ($BaseUrl+'/oa/document/upload') -Method Post -Headers @{Authorization='Bearer '+$token} -Form @{file=Get-Item $tempFile;documentType='phase2'} -TimeoutSec 20
+$upload=UploadFile ($BaseUrl+'/oa/document/upload') $tempFile @{documentType='phase2'} $token
 Check '文件上传成功' ($upload.code -eq 200) $upload.msg
 $blockedFile=Join-Path (Resolve-Path 'ruoyi-admin\target').Path ("phase2-blocked-$suffix.html")
 [System.IO.File]::WriteAllText($blockedFile,'<script>alert(1)</script>')
-$blockedUpload=Invoke-RestMethod -Uri ($BaseUrl+'/oa/document/upload') -Method Post -Headers @{Authorization='Bearer '+$token} -Form @{file=Get-Item $blockedFile;documentType='phase2'} -TimeoutSec 20
+$blockedUpload=UploadFile ($BaseUrl+'/oa/document/upload') $blockedFile @{documentType='phase2'} $token
 Check '危险文件类型拦截' ($blockedUpload.code -eq 400) $blockedUpload.msg
 [System.IO.File]::Delete($blockedFile)
 $adminFiles=Api Get ("/oa/document/list?pageNum=1&pageSize=100&documentName=$fileName") $null $token
@@ -182,10 +243,10 @@ $fileDoc=$adminFiles.rows|Select-Object -First 1
 Check '管理员可见上传文件' ($null -ne $fileDoc) "count=$($adminFiles.total)"
 $userFiles=Api Get ("/oa/document/list?pageNum=1&pageSize=100&documentName=$fileName") $null $zh
 Check '普通用户不可见他人文件' (@($userFiles.rows).Count -eq 0) "count=$($userFiles.total)"
-$adminDownload=Invoke-WebRequest -Uri ($BaseUrl+'/oa/document/download/'+$fileDoc.documentId) -Headers @{Authorization='Bearer '+$token} -TimeoutSec 20
+$adminDownload=Invoke-WebRequest -Uri ($BaseUrl+'/oa/document/download/'+$fileDoc.documentId) -Headers @{Authorization='Bearer '+$token} -UseBasicParsing -TimeoutSec 20
 Check '管理员下载文件成功' ($adminDownload.StatusCode -eq 200 -and $adminDownload.RawContentLength -gt 0) "length=$($adminDownload.RawContentLength)"
 $userDownloadStatus=0
-try{Invoke-WebRequest -Uri ($BaseUrl+'/oa/document/download/'+$fileDoc.documentId) -Headers @{Authorization='Bearer '+$zh} -TimeoutSec 20|Out-Null}catch{$userDownloadStatus=[int]$_.Exception.Response.StatusCode}
+try{Invoke-WebRequest -Uri ($BaseUrl+'/oa/document/download/'+$fileDoc.documentId) -Headers @{Authorization='Bearer '+$zh} -UseBasicParsing -TimeoutSec 20|Out-Null}catch{$userDownloadStatus=[int]$_.Exception.Response.StatusCode}
 Check '普通用户下载他人文件被拦截' ($userDownloadStatus -eq 404) "status=$userDownloadStatus"
 $userDelete=Api Delete ("/oa/document/"+$fileDoc.documentId) $null $zh
 Check '普通用户删除他人文件被拦截' ($userDelete.code -eq 403) $userDelete.msg
@@ -213,5 +274,9 @@ if($flowDocId){Api Delete ("/oa/outgoingDoc/"+$flowDocId) $null $token|Out-Null}
 if($bindingDocId){Api Delete ("/oa/outgoingDoc/"+$bindingDocId) $null $token|Out-Null}
 if($deniedFlowId){Api Delete ("/oa/docFlow/"+$deniedFlowId) $null $token|Out-Null}
 if($adminFlowId){Api Delete ("/oa/docFlow/"+$adminFlowId) $null $token|Out-Null}
+if($csDocId){Api Delete ("/oa/incomingDoc/"+$csDocId) $null $token|Out-Null}
+if($csFlowId){Api Delete ("/oa/docFlow/"+$csFlowId) $null $token|Out-Null}
 Api Delete ("/oa/incomingDoc/"+$inId) $null $token|Out-Null; Api Delete ("/oa/outgoingDoc/"+$outId) $null $token|Out-Null
+# 还原角色2（普通用户）的数据范围与菜单：前面把它依次改成过 scope 5/3/4/2 并临时加了菜单103，不还原会污染环境
+if($commonMenuIds){ Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();menuIds=@($commonMenuIds);status='0'} $token|Out-Null }
 $results|Format-Table -AutoSize; $pass=@($results|Where-Object Result -eq 'PASS').Count; $fail=@($results|Where-Object Result -eq 'FAIL').Count; "SUMMARY PASS=$pass FAIL=$fail"

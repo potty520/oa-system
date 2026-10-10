@@ -77,3 +77,50 @@ node tests\run-ui.js
 5. **登录失败会触发递增退避锁定并返回 429**：第 5 次失败锁 30 秒，之后 1/2/5 分钟递增，上限 15 分钟。计数与锁定都在内存里，重启应用即清除。不要用探测脚本试口令，否则会把自己锁住（首窗只有 30 秒，但连续触发会越来越久）。
 6. **前端 dev server 的代理目标**：`ruoyi-ui/vue.config.js` 默认指向 `http://localhost:18080`，可用 `VUE_APP_BACKEND_URL` 覆盖。开发服务器默认只监听 `127.0.0.1`。
 7. **界面文案断言用的是中文文本**（如"公告标题"）。改动页面列标题会让 UI 测试失败 —— 这是有意的，它同时也是"页面确实渲染了"的证据。
+
+## 详尽矩阵：phase2-exhaustive.ps1
+
+覆盖状态机（2 种公文 × 4 种状态 × 16 个动作 = 96 条）、文件上传/下载/归属、数据范围矩阵（5/3/4/2/多角色）、
+审计日志脱敏与导出。**在 Windows PowerShell 5.1 下即可运行**（不需要 pwsh 7）。
+
+```powershell
+.\tests\phase2-exhaustive.ps1 -BaseUrl http://127.0.0.1:8080 -AdminPassword '<管理员口令>' -CommonPassword '<张三口令>'
+# 期望 SUMMARY PASS=157 FAIL=0
+```
+
+注意两点：
+
+1. 脚本会临时改写**角色 2（普通用户）**的数据范围与菜单来做数据范围矩阵，结束时会还原。
+   如果脚本中途被打断（例如断电），请手工确认角色 2 的 `data_scope` 仍是 `5`。
+2. 脚本需要 `ruoyi-admin/target` 目录存在（上传用临时文件放在那里）。
+
+### 撤签（cancel_sign）的语义
+
+撤签撤销的是**流程派发出来、尚未办理的待办签批**（`oa_doc_approval.approve_result = '0'`）：
+
+| `approve_result` | 含义 | 能否撤签 |
+|---|---|---|
+| `0` | 待办（流程派发，未办理） | 能（本人或管理员） |
+| `1` / `2` | 已通过 / 已拒绝 | 否 |
+| `5` / `7` | 已办结的会签 / 加签意见 | 否 |
+| `8` | 已撤签（撤签写入的结果） | 否 |
+| `9` | 因他人已办理而作废 | 否 |
+
+**关键前提**：待办记录只在公文**绑定流程**（创建时带 `flowId`，或提交时自动匹配唯一启用流程）后
+由 `assignStepToRole` 产生。种子数据不含任何流程，需先在「流程配置」里建流程；没有流程的公文
+不会有待办，也就无从撤签。
+
+## PowerShell 5.1 踩坑清单（本项目实测）
+
+1. **`.ps1` 必须带 UTF-8 BOM**，否则 5.1 按 ANSI 解析，中文注释/字符串会乱码甚至语法错误。
+2. **`Invoke-RestMethod` 没有 `-Form`**（那是 PS 7 才有的）。文件上传要手工拼 `multipart/form-data`
+   字节体，见 `phase2-exhaustive.ps1` 的 `UploadFile`。
+3. **`Invoke-WebRequest` 不带 `-UseBasicParsing`** 会走 IE 引擎，在非交互模式下直接报
+   "Windows PowerShell 处于非交互模式"。下载请求一律加 `-UseBasicParsing`。
+4. **收发中文必须显式处理 UTF-8**：请求体用 `[Text.Encoding]::UTF8.GetBytes($json)` 并以
+   `application/json; charset=utf-8` 发送；响应读 `RawContentStream` 再按 UTF-8 解码。
+   直接用 `Invoke-RestMethod` 会按 ISO-8859-1 猜测，中文变成 `å¬...` 这类乱码 ——
+   断言中文错误信息时会**误报失败**（本次实测 `errorMsg="公文不存在"` 就踩了这个坑，而库里存的是正确的）。
+5. **不要用 `Select-Object -Last N` 去接脚本内部的 `Format-Table` 输出**，会触发
+   `out-lineoutput ... FormatEntryData 类型无效` 错误。改为重定向到文件再读尾部。
+6. **`Check()` 失败不要再 `throw`**：否则后续断言永远不执行、清理段也跑不到，遗留数据会改变下一次运行的结果。
