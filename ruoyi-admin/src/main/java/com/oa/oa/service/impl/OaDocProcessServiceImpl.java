@@ -368,7 +368,20 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         if (users == null || users.isEmpty()) {
             throw new IllegalStateException("流程步骤角色没有可用用户");
         }
+        // 起草人不能成为自己公文的办理人，否则“起草人自审自签”只是从指定字段转移到了流程派发上。
+        // 但角色里只有起草人一人时不能把人抽空：宁可保留原有派发，也不能让公文永久卡在无人可办的步骤。
+        String creator = getDocumentCreator(docType, docId);
+        List<com.oa.system.domain.SysUser> assignees = new ArrayList<>();
         for (com.oa.system.domain.SysUser target : users) {
+            if (creator != null && creator.equals(target.getUsername())) {
+                continue;
+            }
+            assignees.add(target);
+        }
+        if (assignees.isEmpty()) {
+            assignees = users;
+        }
+        for (com.oa.system.domain.SysUser target : assignees) {
             OaDocApproval approval = new OaDocApproval();
             approval.setDocId(docId);
             approval.setDocType(docType);
@@ -478,6 +491,11 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         if ("submit".equals(action) && isCreator(docType, docId, user.getUsername())) {
             return;
         }
+        // 撤回是起草人把自己提交的公文收回，只有起草人本人能做；之前这里没有 withdraw 分支，
+        // 非管理员即使状态机允许撤回也会被“无权处理该公文”挡掉
+        if ("withdraw".equals(action) && isCreator(docType, docId, user.getUsername())) {
+            return;
+        }
         if ("receive".equals(action)
                 && (isCreator(docType, docId, user.getUsername()) || isAssignedHandler(docType, docId, user.getUserId()))) {
             return;
@@ -516,6 +534,15 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         return doc != null && username.equals(doc.getCreateBy());
     }
 
+    private String getDocumentCreator(String docType, Long docId) {
+        if (DOC_INCOMING.equals(docType)) {
+            OaIncomingDoc doc = incomingDocMapper.selectById(docId);
+            return doc == null ? null : doc.getCreateBy();
+        }
+        OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
+        return doc == null ? null : doc.getCreateBy();
+    }
+
     private boolean isAssignedHandler(String docType, Long docId, Long userId) {
         if (!DOC_INCOMING.equals(docType) || userId == null) {
             return false;
@@ -529,7 +556,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
             return false;
         }
         OaOutgoingDoc doc = outgoingDocMapper.selectById(docId);
-        // 只认公文上登记的签发人：允许未指定签发人时由起草人自签，等于起草、审核、签发三权合一
+        // 只认公文上登记的签发人；未指定签发人或签发人就是起草人的情况由 requireSignerAssigned 拦下
         return doc != null && Objects.equals(doc.getSignUserId(), userId);
     }
 
@@ -543,6 +570,12 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         }
         if (doc.getSignUserId() == null) {
             throw new IllegalStateException("请先指定发文签发人，起草人不能自签");
+        }
+        // 消息里承诺的“起草人不能自签”必须真的校验：签发人的用户名不能等于起草人
+        com.oa.system.domain.SysUser signer = userMapper.selectById(doc.getSignUserId());
+        if (signer != null && StringUtils.isNotBlank(doc.getCreateBy())
+                && doc.getCreateBy().equals(signer.getUsername())) {
+            throw new AccessDeniedException("签发人不能是起草人本人，请另行指定签发人");
         }
     }
 
@@ -689,21 +722,59 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
     /**
      * 单份公文的读取权限。
      *
-     * <p>公文中心对普通用户也是开放的，不能只靠 oa:doc:list 就把任意公文的
-     * 审批意见、传阅名单、委托关系全部拿到。</p>
+     * <p>口径与列表数据范围、单份公文读写校验保持一致：只有与该公文有办理关系的人
+     * 才能看到审批意见、传阅名单、委托关系。之前这里对持有 oa:incomingDoc:list /
+     * oa:outgoingDoc:list 的人一律放行，而普通用户角色就带这两个权限
+     * （sql/oa_init.sql 角色 2），等于把全单位公文的办理过程开放给了所有员工。</p>
      */
     private void requireDocumentAccess(String docType, Long docId) {
+        if (!isDocumentEntitled(docType, docId)) {
+            throw new AccessDeniedException("无权查看该公文的办理过程");
+        }
+    }
+
+    @Override
+    public boolean isDocumentEntitled(String docType, Long docId) {
         LoginUser user = requireUser();
         if (SecurityUtils.isAdmin(user.getUserId())) {
-            return;
+            return true;
         }
-        if (hasPermission(user, DOC_INCOMING.equals(docType) ? "oa:incomingDoc:list" : "oa:outgoingDoc:list")) {
-            return;
+        return isDocumentOwnerOrActiveDelegate(docType, docId, user)
+                || isParticipant(docType, docId, user.getUserId());
+    }
+
+    @Override
+    public List<Long> selectParticipantDocIds(String docType) {
+        LoginUser user = requireUser();
+        List<Long> docIds = new ArrayList<>();
+        Long userId = user.getUserId();
+        if (userId == null) {
+            return docIds;
         }
-        if (isDocumentOwnerOrActiveDelegate(docType, docId, user) || isParticipant(docType, docId, user.getUserId())) {
-            return;
+        // 与 isParticipant 的四类关系保持一一对应，改动其中一处必须同步另一处
+        for (OaDocApproval item : approvalMapper.selectList(new LambdaQueryWrapper<OaDocApproval>()
+                .eq(OaDocApproval::getDocType, docType)
+                .eq(OaDocApproval::getUserId, userId))) {
+            docIds.add(item.getDocId());
         }
-        throw new AccessDeniedException("无权查看该公文的办理过程");
+        for (OaDocCirculation item : circulationMapper.selectList(new LambdaQueryWrapper<OaDocCirculation>()
+                .eq(OaDocCirculation::getDocType, docType)
+                .eq(OaDocCirculation::getUserId, userId))) {
+            docIds.add(item.getDocId());
+        }
+        for (OaDocReminder item : reminderMapper.selectList(new LambdaQueryWrapper<OaDocReminder>()
+                .eq(OaDocReminder::getDocType, docType)
+                .and(query -> query.eq(OaDocReminder::getFromUserId, userId)
+                        .or().eq(OaDocReminder::getToUserId, userId)))) {
+            docIds.add(item.getDocId());
+        }
+        for (OaDocDelegate item : delegateMapper.selectList(new LambdaQueryWrapper<OaDocDelegate>()
+                .eq(OaDocDelegate::getDocType, docType)
+                .and(query -> query.eq(OaDocDelegate::getFromUserId, userId)
+                        .or().eq(OaDocDelegate::getToUserId, userId)))) {
+            docIds.add(item.getDocId());
+        }
+        return docIds.stream().filter(Objects::nonNull).distinct().collect(Collectors.toList());
     }
 
     /** 是否在该公文的办理过程里出现过：签批、传阅、催办、委托任一环节都算参与人 */
@@ -735,10 +806,6 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .eq(OaDocDelegate::getDocId, docId)
                 .and(query -> query.eq(OaDocDelegate::getFromUserId, userId)
                         .or().eq(OaDocDelegate::getToUserId, userId))) > 0;
-    }
-
-    private boolean hasPermission(LoginUser user, String permission) {
-        return user.getPermissions() != null && user.getPermissions().contains(permission);
     }
 
     private void addCirculation(String docType, Long docId, Long userId, String userName, String readStatus) {

@@ -53,6 +53,7 @@
             v-model="scope.row.status"
             active-value="0"
             inactive-value="1"
+            :disabled="!canEditStatus"
             @change="handleStatusChange(scope.row)"
           />
         </template>
@@ -124,6 +125,7 @@
 
 <script>
 import { list, getInfo, add, edit, remove } from '@/api/oa/announcement'
+import { checkPermi } from '@/utils/permission'
 
 export default {
   name: 'Announcement',
@@ -157,6 +159,12 @@ export default {
         annLevel: [{ required: true, message: '请选择级别', trigger: 'change' }],
         annContent: [{ required: true, message: '请输入公告内容', trigger: 'blur' }]
       }
+    }
+  },
+  computed: {
+    // 状态开关调用的编辑接口需要 oa:announcement:edit，无权限时只读展示（与系统用户页同一写法）
+    canEditStatus() {
+      return checkPermi('oa:announcement:edit')
     }
   },
   created() {
@@ -196,7 +204,7 @@ export default {
         this.form = data
         this.dialogTitle = '编辑公告'
         this.dialogVisible = true
-      })
+      }).catch(() => {})
     },
     handleDelete(row) {
       this.$confirm('确定删除该公告吗？', '提示', {
@@ -238,13 +246,13 @@ export default {
               this.$message.success('修改成功')
               this.dialogVisible = false
               this.getList()
-            })
+            }).catch(() => {})
           } else {
             add(submitData).then(() => {
               this.$message.success('新增成功')
               this.dialogVisible = false
               this.getList()
-            })
+            }).catch(() => {})
           }
         }
       })

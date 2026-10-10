@@ -35,3 +35,13 @@ playwright-report/
 # Python
 __pycache__/
 *.pyc
+
+# 本地上传目录（app.upload.path 默认为 ./oa-upload，本地运行上传后会产生文件）
+/oa-upload/
+
+# 测试运行产物
+tests/ui-result.json
+
+# 初始口令文件（app.init-password-file 的默认落盘位置，含明文口令，绝不能提交）
+/oa-init-passwords.txt
+

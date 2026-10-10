@@ -32,7 +32,7 @@ async (page) => {
   await page.getByRole('textbox', { name: '用户名' }).fill('admin');
   const adminPassword = process.env.OA_INIT_ADMIN_PASSWORD;
   if (!adminPassword) {
-    throw new Error('请设置环境变量 OA_INIT_ADMIN_PASSWORD（初始密码见后端启动日志）');
+    throw new Error('请设置环境变量 OA_INIT_ADMIN_PASSWORD（初始密码见 app.init-password-file，默认 ./oa-init-passwords.txt）');
   }
   await page.getByRole('textbox', { name: '密码' }).fill(adminPassword);
   await page.getByRole('button', { name: '登 录' }).click();

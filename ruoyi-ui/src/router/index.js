@@ -16,6 +16,18 @@ export const constantRoutes = [
     hidden: true
   },
   {
+    // TagsView“刷新页面”跳到这里，由组件立刻 replace 回原地址，用于重建页面组件
+    path: '/redirect',
+    component: Layout,
+    hidden: true,
+    children: [
+      {
+        path: '/redirect/:path(.*)',
+        component: () => import('../views/redirect/index')
+      }
+    ]
+  },
+  {
     path: '',
     component: Layout,
     redirect: 'dashboard',
@@ -39,55 +51,55 @@ export const constantRoutes = [
         path: 'announcement',
         component: () => import('../views/oa/announcement/index'),
         name: 'Announcement',
-        meta: { title: '公告管理', icon: 'el-icon-s-bell' }
+        meta: { title: '公告管理', icon: 'el-icon-s-bell', permissions: ['oa:announcement:list'] }
       },
       {
         path: 'schedule',
         component: () => import('../views/oa/schedule/index'),
         name: 'Schedule',
-        meta: { title: '日程管理', icon: 'el-icon-date' }
+        meta: { title: '日程管理', icon: 'el-icon-date', permissions: ['oa:schedule:list'] }
       },
       {
         path: 'leave',
         component: () => import('../views/oa/leave/index'),
         name: 'Leave',
-        meta: { title: '请假管理', icon: 'el-icon-s-promotion' }
+        meta: { title: '请假管理', icon: 'el-icon-s-promotion', permissions: ['oa:leave:list'] }
       },
       {
         path: 'reimbursement',
         component: () => import('../views/oa/reimbursement/index'),
         name: 'Reimbursement',
-        meta: { title: '报销管理', icon: 'el-icon-money' }
+        meta: { title: '报销管理', icon: 'el-icon-money', permissions: ['oa:reimbursement:list'] }
       },
       {
         path: 'incoming-doc',
         component: () => import('../views/oa/incoming-doc/index'),
         name: 'IncomingDoc',
-        meta: { title: '收文管理', icon: 'el-icon-download' }
+        meta: { title: '收文管理', icon: 'el-icon-download', permissions: ['oa:incomingDoc:list'] }
       },
       {
         path: 'outgoing-doc',
         component: () => import('../views/oa/outgoing-doc/index'),
         name: 'OutgoingDoc',
-        meta: { title: '发文管理', icon: 'el-icon-upload' }
+        meta: { title: '发文管理', icon: 'el-icon-upload', permissions: ['oa:outgoingDoc:list'] }
       },
       {
         path: 'doc-flow',
         component: () => import('../views/oa/doc-flow/index'),
         name: 'DocFlow',
-        meta: { title: '公文流转', icon: 'el-icon-sort' }
+        meta: { title: '公文流转', icon: 'el-icon-sort', permissions: ['oa:docFlow:list'] }
       },
       {
         path: 'doc-center',
         component: () => import('../views/oa/doc-center/index'),
         name: 'DocCenter',
-        meta: { title: '公文中心', icon: 'el-icon-document' }
+        meta: { title: '公文中心', icon: 'el-icon-document', permissions: ['oa:doc:list'] }
       },
       {
         path: 'todo',
         component: () => import('../views/oa/todo/index'),
         name: 'Todo',
-        meta: { title: '待办事项', icon: 'el-icon-s-claim' }
+        meta: { title: '待办事项', icon: 'el-icon-s-claim', permissions: ['oa:todo:list'] }
       },
       {
         path: 'notice',
@@ -108,31 +120,31 @@ export const constantRoutes = [
         path: 'user',
         component: () => import('../views/system/user/index'),
         name: 'User',
-        meta: { title: '用户管理', icon: 'el-icon-user' }
+        meta: { title: '用户管理', icon: 'el-icon-user', permissions: ['system:user:list'] }
       },
       {
         path: 'role',
         component: () => import('../views/system/role/index'),
         name: 'Role',
-        meta: { title: '角色管理', icon: 'el-icon-s-custom' }
+        meta: { title: '角色管理', icon: 'el-icon-s-custom', permissions: ['system:role:list'] }
       },
       {
         path: 'dept',
         component: () => import('../views/system/dept/index'),
         name: 'Dept',
-        meta: { title: '部门管理', icon: 'el-icon-s-management' }
+        meta: { title: '部门管理', icon: 'el-icon-s-management', permissions: ['system:dept:list'] }
       },
       {
         path: 'post',
         component: () => import('../views/system/post/index'),
         name: 'Post',
-        meta: { title: '岗位管理', icon: 'el-icon-postcard' }
+        meta: { title: '岗位管理', icon: 'el-icon-postcard', permissions: ['system:post:list'] }
       },
       {
         path: 'log',
         component: () => import('../views/system/log/index'),
         name: 'OperLog',
-        meta: { title: '操作日志', icon: 'el-icon-document-checked' }
+        meta: { title: '操作日志', icon: 'el-icon-document-checked', permissions: ['system:log:list'] }
       }
     ]
   },

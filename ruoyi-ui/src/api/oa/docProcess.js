@@ -28,6 +28,12 @@ export function docTypeList(query) {
   return request({ url: '/oa/docType/list', method: 'get', params: query })
 }
 
+// 公文类型下拉选项：登录即可读，只含 docTypeId/typeName/typeCode，停用的类型不返回。
+// 收文/发文页要用它把 docTypeId 显示成类型名称（/docType/list 需要 oa:docType:list 权限）。
+export function listDocTypeOptions() {
+  return request({ url: '/oa/docType/options', method: 'get' })
+}
+
 export function addDocType(data) {
   return request({ url: '/oa/docType', method: 'post', data })
 }

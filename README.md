@@ -143,11 +143,13 @@ mysql -uroot -p oa_system < E:\api\oa-system\sql\oa_init.sql
 - **CORS_ALLOWED_ORIGINS**：允许跨域的前端域名，多个域名用英文逗号分隔；默认仅允许本地 `http://localhost:18081`。
 - **TRUST_FORWARDED_HEADERS**：部署在可信反向代理后时设为 `true`，登录限流将使用 `X-Forwarded-For` 的首个地址；直连部署保持 `false`。
 - **PUBLIC_API_DOCS**：是否匿名开放 Swagger，默认 `false`，生产环境保持关闭。
-- **OA_INIT_<用户名大写>_PASSWORD**：初始账号的首次登录口令，例如 `OA_INIT_ADMIN_PASSWORD`、`OA_INIT_ZHANGSAN_PASSWORD`、`OA_INIT_LISI_PASSWORD`。未配置时应用会生成一次性随机密码，只在启动日志里输出一次。
+- **OA_INIT_<用户名大写>_PASSWORD**：初始账号的首次登录口令，例如 `OA_INIT_ADMIN_PASSWORD`、`OA_INIT_ZHANGSAN_PASSWORD`、`OA_INIT_LISI_PASSWORD`。未配置时应用会生成一次性随机密码，只写入本地口令文件，**不再写入日志**。
+- **INIT_PASSWORD_FILE**：生成的一次性初始口令的落地文件路径，默认 `./oa-init-passwords.txt`；应用会自动创建父目录并尽量把权限收紧到仅属主可读写（Linux/macOS 为 `rw-------`，Windows 用 ACL 只保留属主），该文件不映射任何 HTTP 接口，读取后请立即删除。默认路径相对进程工作目录，从仓库根目录启动时会落在仓库里，**切勿提交到版本库**，生产环境建议用该变量把它指到仓库外的目录。
 - **注册接口**：`/register` 已要求 `system:user:add` 权限，不再匿名开放。
-- **登录保护**：单用户连续失败 5 次锁定 15 分钟，错误提示统一为“用户名或密码错误”。
+- **登录保护**：单用户连续失败 5 次开始锁定，锁定时长随连续失败次数递增（30 秒 → 1 分钟 → 2 分钟 → 5 分钟 → 15 分钟封顶），锁定期间返回 429，错误提示统一为“用户名或密码错误”。
 - **文件安全**：上传目录不再通过 `/profile/**` 静态暴露，附件只能通过鉴权下载接口访问，并限制允许的文件扩展名。
-- **初始账号**：仓库不再内置任何可用口令，`admin`、`zhangsan`、`lisi` 的密码由首次启动时初始化，且强制首次登录修改。
+- **初始账号**：仓库不再内置任何可用口令，`admin`、`zhangsan`、`lisi` 的密码由首次启动时初始化，且强制首次登录修改；
+  强制改密由**服务端**执行，改密完成前除 `GET /getInfo`、`POST /logout`、`PUT /system/user/profile/updatePwd` 外的接口一律 403。
 
 ## 启动后端
 
@@ -195,22 +197,48 @@ npm run build:prod
 应用首次启动时由 `InitialAccountInitializer` 完成初始化：
 
 1. 优先读取环境变量 `OA_INIT_<用户名大写>_PASSWORD`，例如 `OA_INIT_ADMIN_PASSWORD`；
-2. 未配置时生成 16 位一次性随机密码，**只在本次启动日志里以 WARN 输出一次**，请及时保存；
-3. 无论口令来源如何，账号都被标记为首次登录必须修改密码，登录后前端会弹出不可关闭的改密框；
+2. 未配置时生成 16 位一次性随机密码，**只写入服务器本地口令文件**（配置项 `app.init-password-file`，
+   环境变量 `INIT_PASSWORD_FILE`，默认 `./oa-init-passwords.txt`），**不再写入任何日志**：日志里只出现文件路径
+   和“用完立即删除”的提示。文件每行是 `用户名=口令`，多次启动会追加写入；应用会自动创建父目录并
+   尽量把权限收紧到仅属主可读写（Linux/macOS 用 POSIX `rw-------`；Windows 没有 POSIX 权限位，
+   改用 ACL 只给属主授权，但管理员仍可能读取，所以必须取走内容后立刻删除该文件）。该文件不是任何
+   HTTP 资源的映射目录，也没有任何接口能读取它，只能登录服务器通过文件系统访问；
+   若口令来自环境变量，则**不会**写任何文件（来源方已经知道口令）；
+3. 无论口令来源如何，账号都被标记为首次登录必须修改密码；**该限制由服务端强制执行**
+   （`JwtAuthenticationFilter`）。在改密完成前，除 `GET /getInfo`、`POST /logout`、
+   `PUT /system/user/profile/updatePwd` 之外的任何接口一律返回 403
+   `{"code":403,"msg":"首次登录必须修改密码后才能继续使用"}`，因此不能靠直接调用接口跳过改密；
+   前端也会弹出不可关闭的改密框。
 4. 口令需满足强度策略：8-64 位且同时包含字母与数字，否则回退为随机密码。
 
 自助改密接口为 `PUT /system/user/profile/updatePwd`（请求体 `{"oldPassword":"...","newPassword":"..."}`），
 任何已登录用户都可调用，不需要 `system:user:*` 权限。
 
-从旧版本升级时，`DatabaseMigrationRunner` 会补上 `must_change_pwd` 列，并把仍在使用内置演示口令
-`admin123` 的账号标记为首次登录必须改密。
+从旧版本升级时，`DatabaseMigrationRunner` 会补上 `must_change_pwd` 列；对仍在使用内置演示口令
+`admin123` 的账号，它不再只是"标记"，而是**直接作废口令**（把 `password` 覆盖为占位符
+`PENDING_INITIAL_PASSWORD` 并置 `must_change_pwd='1'`），由同一次启动的 `InitialAccountInitializer`
+重新初始化一个新口令。这样升级后的库不会继续接受公开的 `admin123`。
 
+由于强制改密是服务端强制的，**任何自动化脚本在全新库上都必须先完成一次改密**才能调用其他接口。
 集成测试脚本不再硬编码密码，需要显式传入：
 
 ```powershell
-$env:OA_INIT_ADMIN_PASSWORD = "启动日志里的一次性密码"
+$env:OA_INIT_ADMIN_PASSWORD = "口令文件里的一次性密码"
 $env:OA_INIT_ZHANGSAN_PASSWORD = "..."
 .\tests\phase1-smoke.ps1
+```
+
+若脚本在全新库上直接调用业务接口会得到 403，需要先改密：
+
+```powershell
+# 1) 登录拿到 token
+$login = Invoke-RestMethod -Uri "$BaseUrl/login" -Method Post -ContentType 'application/json' `
+  -Body (@{username='admin';password=$env:OA_INIT_ADMIN_PASSWORD} | ConvertTo-Json -Compress)
+$token = $login.data.token
+# 2) 完成强制改密（之后 must_change_pwd 变为 0，其余接口恢复可用）
+Invoke-RestMethod -Uri "$BaseUrl/system/user/profile/updatePwd" -Method Put `
+  -Headers @{Authorization='Bearer '+$token} -ContentType 'application/json' `
+  -Body (@{oldPassword=$env:OA_INIT_ADMIN_PASSWORD;newPassword='YourNewPass123'} | ConvertTo-Json -Compress)
 ```
 
 ## 项目结构

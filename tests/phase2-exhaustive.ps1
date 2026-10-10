@@ -1,6 +1,6 @@
-param(
+﻿param(
   [string]$BaseUrl='http://localhost:18081/api',
-  # 仓库不再内置默认口令，初始密码来自启动日志或 OA_INIT_<用户名大写>_PASSWORD
+  # 仓库不再内置默认口令，初始密码由启动时生成并写入 app.init-password-file（默认 ./oa-init-passwords.txt），或由 OA_INIT_<用户名大写>_PASSWORD 提供
   [string]$AdminPassword=$env:OA_INIT_ADMIN_PASSWORD,
   [string]$CommonPassword=$env:OA_INIT_ZHANGSAN_PASSWORD
 )
@@ -54,7 +54,7 @@ $otl=Api Get ("/oa/doc/timeline/2/$outId") $null $token; Check '发文全流程�
 $dupDoc=Api Post '/oa/incomingDoc' @{docNumber=$inNum;docTitle='重复编号';sourceUnit='测试';receiveDate='2026-09-20';docLevel='1';docSecret='1';status='0'} $token; Check '重复公文编号拦截' ($dupDoc.code  -eq  409) $dupDoc.msg
 # Illegal IDs
 $badId=Api Post '/oa/doc/action/1/99999999' @{action='receive'} $token; Check '不存在公文ID拦截' ($badId.code -eq  400) $badId.msg
-# Data scopes through contacts endpoint
+# Data scopes: /system/user/list 会套用数据范围；/system/user/options 是跨部门选人用的，故意不套范围
 $usersToCreate=@(
  @{userName="scope103$suffix";nickName='范围103';password='Test123456';deptId=103;roleIds=@(2)},
  @{userName="scope101$suffix";nickName='范围101';password='Test123456';deptId=101;roleIds=@(2)}
@@ -71,7 +71,7 @@ $flowInfo=Api Get ("/oa/docFlow/$deniedFlowId") $null $token; $deniedStepId=($fl
 $flowDocNum="AUTO-FLOW-DOC-$suffix"; Api Post '/oa/outgoingDoc' @{docNumber=$flowDocNum;docTitle='自动流转测试';draftUnit='测试部门';draftDate='2026-09-21';docLevel='1';docSecret='1';docTypeId=1000;flowId=$deniedFlowId;mainSend='测试单位';status='0'} $token|Out-Null
 $flowDocList=Api Get ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=$flowDocNum") $null $token; $flowDocId=($flowDocList.rows|Select-Object -First 1).docId
 Api Post ("/oa/doc/action/2/$flowDocId") @{action='submit'} $token|Out-Null
-$todoList=Api Get '/oa/todo/list?pageNum=1&pageSize=100&todoType=outgoing_doc' $null $zh
+$todoList=Api Get '/oa/todo/list?pageNum=1&pageSize=100' $null $zh
 Check '提交后自动流转到对应角色' (@($todoList.rows|Where-Object {$_.relatedId -eq $flowDocId}).Count -ge 1) "count=$(@($todoList.rows).Count)"
 $flowApprove=Api Post ("/oa/doc/action/2/$flowDocId") @{action='approve';opinion='同意'} $zh
 Check '角色待办审批处理' ($flowApprove.code -eq 200) $flowApprove.msg
@@ -85,25 +85,30 @@ $bindingList=Api Get ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=$bin
 Api Post ("/oa/doc/action/2/$bindingDocId") @{action='submit'} $token|Out-Null
 $flowBypass=Api Post ("/oa/doc/action/2/$bindingDocId") @{action='sign';flowId=$deniedFlowId;stepId=$deniedStepId;opinion='流程角色越权'} $zh
 Check '流程模板角色不能绕过公文分派' ($flowBypass.code -eq 403) $flowBypass.msg
+# 普通用户角色默认没有 system:user:list，临时补上该菜单（本段结束后还原），否则只会拿到 403
+$commonRole=Api Get '/system/role/2' $null $token; $commonMenuIds=@($commonRole.data.menuIds)
+Check '读取普通用户角色菜单' ($null -ne $commonRole.data -and $commonMenuIds.Count -gt 0) "count=$($commonMenuIds.Count)"
 # self scope (5)
-Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();status='0'} $token|Out-Null
-$selfScope=Api Get '/system/user/contacts' $null $zh; Check '仅本人数据范围' (@($selfScope.data).Count  -eq  1) "count=$(@($selfScope.data).Count)"
+Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();menuIds=($commonMenuIds+103);status='0'} $token|Out-Null
+$selfScope=Api Get '/system/user/list?pageNum=1&pageSize=100' $null $zh; Check '仅本人数据范围' (@($selfScope.rows).Count  -eq  1) "count=$(@($selfScope.rows).Count)"
 # dept scope (3): zhangsan + scope103
 Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='3';deptIds=@();status='0'} $token|Out-Null
-$deptScope=Api Get '/system/user/contacts' $null $zh; Check '本部门数据范围' (@($deptScope.data|Where-Object {$_.deptId -eq  103}).Count  -ge  2) "count=$(@($deptScope.data).Count)"
+$deptScope=Api Get '/system/user/list?pageNum=1&pageSize=100' $null $zh; Check '本部门数据范围' (@($deptScope.rows|Where-Object {$_.deptId -eq  103}).Count  -ge  2) "count=$(@($deptScope.rows).Count)"
 # dept and below (4)
 Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='4';deptIds=@();status='0'} $token|Out-Null
-$belowScope=Api Get '/system/user/contacts' $null $zh; Check '本部门及以下数据范围' (@($belowScope.data|Where-Object {$_.deptId -eq  103}).Count  -ge  2) "count=$(@($belowScope.data).Count)"
+$belowScope=Api Get '/system/user/list?pageNum=1&pageSize=100' $null $zh; Check '本部门及以下数据范围' (@($belowScope.rows|Where-Object {$_.deptId -eq  103}).Count  -ge  2) "count=$(@($belowScope.rows).Count)"
 # custom dept (2): self + dept101
 Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='2';deptIds=@(101);status='0'} $token|Out-Null
-$customScope=Api Get '/system/user/contacts' $null $zh; Check '自定义部门数据范围' (@($customScope.data|Where-Object {$_.deptId -eq  101}).Count  -ge  1 -and @($customScope.data|Where-Object {$_.userId -eq  2}).Count  -eq  1) "count=$(@($customScope.data).Count)"
+$customScope=Api Get '/system/user/list?pageNum=1&pageSize=100' $null $zh; Check '自定义部门数据范围' (@($customScope.rows|Where-Object {$_.deptId -eq  101}).Count  -ge  1 -and @($customScope.rows|Where-Object {$_.userId -eq  2}).Count  -eq  1) "count=$(@($customScope.rows).Count)"
 # multi-role union: self scope + current department scope
 Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();status='0'} $token|Out-Null
 Api Put '/system/role' @{roleId=3;roleName='部门经理';roleKey='manager';roleSort=3;dataScope='3';deptIds=@();status='0'} $token|Out-Null
 Api Put '/system/user' @{userId=2;userName='zhangsan';nickName='张三';deptId=103;roleIds=@(2,3);status='0'} $token|Out-Null
 $combinedLogin=Api Post '/login' @{username='zhangsan';password=$CommonPassword} $null
-$combinedScope=Api Get '/system/user/contacts' $null $combinedLogin.data.token
-Check '多角色数据范围并集' (@($combinedScope.data|Where-Object {$_.deptId -eq 103}).Count -ge 2) "count=$(@($combinedScope.data).Count)"
+$combinedScope=Api Get '/system/user/list?pageNum=1&pageSize=100' $null $combinedLogin.data.token
+Check '多角色数据范围并集' (@($combinedScope.rows|Where-Object {$_.deptId -eq 103}).Count -ge 2) "count=$(@($combinedScope.rows).Count)"
+# 去掉临时补上的用户列表权限
+Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();menuIds=$commonMenuIds;status='0'} $token|Out-Null
 # restore role scopes and user role
 Api Put '/system/role' @{roleId=3;roleName='部门经理';roleKey='manager';roleSort=3;dataScope='4';deptIds=@();status='0'} $token|Out-Null
 Api Put '/system/user' @{userId=2;userName='zhangsan';nickName='张三';deptId=103;roleIds=@(2);status='0'} $token|Out-Null
@@ -154,6 +159,10 @@ foreach($entry in $matrixDocs){
   }
 }
 Check '非法状态矩阵完整执行' ($illegalChecked -gt 90) "checked=$illegalChecked"
+# 管理员会短路 requireActionPermission，上面所有动作都走管理员，这里用普通用户验证公文授权仍然生效
+$matrixIncoming=($matrixDocs|Where-Object {$_.Type -eq '1' -and $_.Status -eq '0'})|Select-Object -First 1
+$nonAdminAction=Api Post ("/oa/doc/action/1/"+$matrixIncoming.Id) @{action='receive';opinion='越权办理'} $zh
+Check '普通用户越权办理公文拦截' ($nonAdminAction.code -eq 403) $nonAdminAction.msg
 $blankAction=Api Post ("/oa/doc/action/1/$inId") @{action=''} $token; Check '空动作拦截' ($blankAction.code -eq 400) $blankAction.msg
 $badDocType=Api Post ("/oa/doc/action/9/$inId") @{action='receive'} $token; Check '非法公文类型拦截' ($badDocType.code -eq 400) $badDocType.msg
 

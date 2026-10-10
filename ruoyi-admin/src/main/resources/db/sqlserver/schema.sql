@@ -7,7 +7,7 @@
 IF OBJECT_ID(N'sys_dept', N'U') IS NULL
 BEGIN
 CREATE TABLE sys_dept (
-  dept_id BIGINT IDENTITY(1000,1) NOT NULL,
+  dept_id BIGINT IDENTITY(104,1) NOT NULL,
   parent_id BIGINT DEFAULT 0,
   ancestors NVARCHAR(200) DEFAULT '',
   dept_name NVARCHAR(50) NOT NULL,
@@ -32,7 +32,7 @@ CREATE INDEX idx_sys_dept_idx_parent_id ON sys_dept(parent_id);
 IF OBJECT_ID(N'sys_user', N'U') IS NULL
 BEGIN
 CREATE TABLE sys_user (
-  user_id BIGINT IDENTITY(1000,1) NOT NULL,
+  user_id BIGINT IDENTITY(4,1) NOT NULL,
   username NVARCHAR(30) NOT NULL,
   password NVARCHAR(200) NOT NULL,
   nickname NVARCHAR(30) DEFAULT '',
@@ -59,7 +59,7 @@ END;
 IF OBJECT_ID(N'sys_role', N'U') IS NULL
 BEGIN
 CREATE TABLE sys_role (
-  role_id BIGINT IDENTITY(1000,1) NOT NULL,
+  role_id BIGINT IDENTITY(4,1) NOT NULL,
   role_name NVARCHAR(30) NOT NULL,
   role_key NVARCHAR(100) NOT NULL,
   role_sort INT DEFAULT 0,
@@ -78,7 +78,7 @@ END;
 IF OBJECT_ID(N'sys_menu', N'U') IS NULL
 BEGIN
 CREATE TABLE sys_menu (
-  menu_id BIGINT IDENTITY(1000,1) NOT NULL,
+  menu_id BIGINT IDENTITY(217,1) NOT NULL,
   menu_name NVARCHAR(50) NOT NULL,
   parent_id BIGINT DEFAULT 0,
   order_num INT DEFAULT 0,
@@ -120,7 +120,7 @@ END;
 IF OBJECT_ID(N'sys_post', N'U') IS NULL
 BEGIN
 CREATE TABLE sys_post (
-  post_id BIGINT IDENTITY(1000,1) NOT NULL,
+  post_id BIGINT IDENTITY(4,1) NOT NULL,
   post_code NVARCHAR(64) NOT NULL,
   post_name NVARCHAR(50) NOT NULL,
   post_sort INT DEFAULT 0,
@@ -380,7 +380,7 @@ CREATE INDEX idx_oa_document_idx_user_id ON oa_document(user_id);
 IF OBJECT_ID(N'oa_doc_type', N'U') IS NULL
 BEGIN
 CREATE TABLE oa_doc_type (
-  doc_type_id BIGINT IDENTITY(1000,1) NOT NULL,
+  doc_type_id BIGINT IDENTITY(1008,1) NOT NULL,
   type_name NVARCHAR(100) NOT NULL,
   type_code NVARCHAR(50) NOT NULL,
   parent_id BIGINT DEFAULT 0,
@@ -665,6 +665,19 @@ END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_oa_doc_archive_idx_doc' AND object_id = OBJECT_ID('oa_doc_archive'))
 CREATE INDEX idx_oa_doc_archive_idx_doc ON oa_doc_archive(doc_id, doc_type);
 
+IF OBJECT_ID(N'sys_token_revocation', N'U') IS NULL
+BEGIN
+CREATE TABLE sys_token_revocation (
+  revoke_key NVARCHAR(128) NOT NULL,
+  revoked_at DATETIME2 NOT NULL,
+  expire_time DATETIME2 NOT NULL,
+  PRIMARY KEY (revoke_key)
+);
+END;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'idx_sys_token_revocation_idx_revoke_expire' AND object_id = OBJECT_ID('sys_token_revocation'))
+CREATE INDEX idx_sys_token_revocation_idx_revoke_expire ON sys_token_revocation(expire_time);
+
 
 
 -- System seed data
@@ -924,6 +937,12 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 214)
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (214, '公文模板删除', 90, 15, '', NULL, 'F', '0', '0', 'oa:docTemplate:remove', '#');
 
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 215)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (215, '归档台账', 90, 16, '', NULL, 'F', '0', '0', 'oa:archive:list', '#');
+
+IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 216)
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (216, '报销付款', 40, 8, '', NULL, 'F', '0', '0', 'oa:reimbursement:pay', '#');
+
 IF NOT EXISTS (SELECT 1 FROM sys_menu WHERE menu_id = 100)
 INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, menu_type, visible, status, perms, icon) VALUES (100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting');
 
@@ -1177,6 +1196,12 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 213);
 
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 214)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 214);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 215)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 215);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 216)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 216);
 
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 1 AND menu_id = 100)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (1, 100);
@@ -1489,6 +1514,12 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES (3, 121);
 
 IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 3 AND menu_id = 200)
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES (3, 200);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 3 AND menu_id = 215)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (3, 215);
+
+IF NOT EXISTS (SELECT 1 FROM sys_role_menu WHERE role_id = 3 AND menu_id = 216)
+INSERT INTO sys_role_menu (role_id, menu_id) VALUES (3, 216);
 
 SET IDENTITY_INSERT oa_doc_type ON;
 

@@ -7,10 +7,12 @@ import com.oa.oa.domain.OaIncomingDoc;
 import com.oa.oa.mapper.OaIncomingDocMapper;
 import com.oa.oa.service.IOaDocProcessService;
 import com.oa.oa.service.IOaIncomingDocService;
+import com.oa.security.utils.SecurityUtils;
 import com.oa.system.domain.SysUser;
 import com.oa.system.mapper.SysUserMapper;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -38,12 +40,18 @@ public class OaIncomingDocServiceImpl extends ServiceImpl<OaIncomingDocMapper, O
                 .eq(StringUtils.isNotBlank(doc.getDocLevel()), OaIncomingDoc::getDocLevel, doc.getDocLevel())
                 .eq(StringUtils.isNotBlank(doc.getStatus()), OaIncomingDoc::getStatus, doc.getStatus())
                 .orderByDesc(OaIncomingDoc::getReceiveDate);
+        applyDataScope(wrapper);
         return baseMapper.selectList(wrapper);
     }
 
     @Override
     public OaIncomingDoc selectOaIncomingDocById(Long docId) {
-        return baseMapper.selectById(docId);
+        OaIncomingDoc existing = docId == null ? null : baseMapper.selectById(docId);
+        if (existing == null) {
+            return null;
+        }
+        requireEntitled(docId);
+        return existing;
     }
 
     @Override
@@ -63,6 +71,9 @@ public class OaIncomingDocServiceImpl extends ServiceImpl<OaIncomingDocMapper, O
         // 流程运行时状态由服务端维护，不接受客户端预置（flowId 是用户选择的流程，保留）
         doc.setCurrentStepId(null);
         doc.setCurrentStepOrder(null);
+        // 起草人一律取当前登录用户，不接受客户端传入，否则数据归属和“起草人不能自办”都能被绕过
+        doc.setCreateBy(SecurityUtils.getUsername());
+        requireHandlerNotCreator(doc.getHandlerId(), doc.getCreateBy());
         doc.setHandlerName(resolveUserName(doc.getHandlerId(), doc.getHandlerName()));
         return baseMapper.insert(doc);
     }
@@ -70,6 +81,7 @@ public class OaIncomingDocServiceImpl extends ServiceImpl<OaIncomingDocMapper, O
     @Override
     public int updateOaIncomingDoc(OaIncomingDoc doc) {
         OaIncomingDoc existing = requireEditable(doc == null ? null : doc.getDocId());
+        requireHandlerNotCreator(doc.getHandlerId(), existing.getCreateBy());
         // 只接受业务字段：状态、流程绑定、创建信息一律由服务端维护，
         // 否则客户端可以直接把 status 改成“已办结”绕过整个办理流程
         OaIncomingDoc update = new OaIncomingDoc();
@@ -126,10 +138,48 @@ public class OaIncomingDocServiceImpl extends ServiceImpl<OaIncomingDocMapper, O
 
     private OaIncomingDoc requireEditable(Long docId) {
         OaIncomingDoc existing = requireExisting(docId);
+        requireEntitled(existing.getDocId());
         if (!STATUS_PENDING_RECEIVE.equals(existing.getStatus())) {
             throw new IllegalStateException("收文已进入办理流程，不能再直接修改或删除");
         }
         return existing;
+    }
+
+    /**
+     * 收文列表的数据范围：与首页统计（DashboardController）口径完全一致，
+     * 再并上流程派发给本人的公文，避免审批人/传阅人看不到自己待办的那一份。
+     */
+    private void applyDataScope(LambdaQueryWrapper<OaIncomingDoc> wrapper) {
+        Long userId = SecurityUtils.getUserId();
+        if (SecurityUtils.isAdmin(userId)) {
+            return;
+        }
+        String username = SecurityUtils.getUsername();
+        List<Long> participantDocIds = docProcessService.selectParticipantDocIds(DOC_INCOMING);
+        wrapper.and(query -> {
+            query.eq(OaIncomingDoc::getHandlerId, userId).or().eq(OaIncomingDoc::getCreateBy, username);
+            if (!participantDocIds.isEmpty()) {
+                query.or().in(OaIncomingDoc::getDocId, participantDocIds);
+            }
+        });
+    }
+
+    /** 单份收文的读取与变更权限，口径与列表数据范围、办理过程读取一致 */
+    private void requireEntitled(Long docId) {
+        if (!docProcessService.isDocumentEntitled(DOC_INCOMING, docId)) {
+            throw new AccessDeniedException("无权查看或操作该收文");
+        }
+    }
+
+    /** 起草人不能同时被指定为办理人，否则等于起草、办理、审批三权合一 */
+    private void requireHandlerNotCreator(Long handlerId, String creator) {
+        if (handlerId == null || StringUtils.isBlank(creator)) {
+            return;
+        }
+        SysUser handler = userMapper.selectById(handlerId);
+        if (handler != null && creator.equals(handler.getUsername())) {
+            throw new AccessDeniedException("办理人不能是收文起草人本人，请另行指定办理人");
+        }
     }
 
     private OaIncomingDoc requireExisting(Long docId) {

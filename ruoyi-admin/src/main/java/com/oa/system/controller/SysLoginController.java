@@ -22,6 +22,14 @@ import java.util.Map;
 @RestController
 public class SysLoginController {
 
+    /**
+     * 固定的一次性 BCrypt 串（Spring Security 文档中的公开示例，cost 与默认强度一致，不是任何账号的口令）。
+     * 只在“账号不存在”或“口令仍是占位符”时用来替代真实口令做一次完整比对，
+     * 保证无论账号是否存在都恰好执行一次 BCrypt 运算，响应时间不再泄露账号是否存在。
+     */
+    private static final String DUMMY_PASSWORD_HASH =
+            "$2a$10$dXJ3SW6G7P50lGmMkkmwe.20cQQubK3.HZWzG3YB1tlRy.fqvM/BG";
+
     @Autowired
     private ISysUserService userService;
 
@@ -44,13 +52,22 @@ public class SysLoginController {
             return AjaxResult.error(400, "用户名或密码不能为空");
         }
         if (loginAttemptService.isBlocked(username, clientIp)) {
-            return AjaxResult.error(429, "登录失败次数过多，请15分钟后再试");
+            // 锁定时间随连续失败次数逐级增长（30 秒起步，最长 15 分钟），提示里不再写死固定时长
+            long blockedSeconds = loginAttemptService.blockedSeconds(username, clientIp);
+            return AjaxResult.error(429, blockedSeconds > 0
+                    ? "登录失败次数过多，请 " + blockedSeconds + " 秒后再试"
+                    : "登录失败次数过多，请稍后再试");
         }
 
         LoginUser loginUser = userService.selectUserByUsername(username);
-        // 占位口令不是合法 BCrypt 串，直接短路，既避免无意义的哈希比对也不暴露账号状态
-        if (loginUser == null || Constants.PENDING_PASSWORD.equals(loginUser.getPassword())
-                || !SecurityUtils.matchesPassword(password, loginUser.getPassword())) {
+        // 账号不存在或口令仍是占位符时改用固定的 dummy 哈希：
+        // 无论哪种情况都恰好做一次 BCrypt 比对，避免“未知用户名返回更快”被用来枚举账号。
+        // 占位符不是合法 BCrypt 串，直接拿去比对会抛异常，所以必须先替换掉。
+        boolean pendingPassword = loginUser == null
+                || Constants.PENDING_PASSWORD.equals(loginUser.getPassword());
+        String passwordHash = pendingPassword ? DUMMY_PASSWORD_HASH : loginUser.getPassword();
+        boolean passwordMatched = SecurityUtils.matchesPassword(password, passwordHash);
+        if (pendingPassword || !passwordMatched) {
             loginAttemptService.recordFailure(username, clientIp);
             return AjaxResult.error(400, "用户名或密码错误");
         }

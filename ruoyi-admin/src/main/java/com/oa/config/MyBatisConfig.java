@@ -25,18 +25,34 @@ public class MyBatisConfig {
         return new MetaObjectHandler() {
             @Override
             public void insertFill(MetaObject metaObject) {
-                this.strictInsertFill(metaObject, "createTime", Date.class, new Date());
-                this.strictInsertFill(metaObject, "updateTime", Date.class, new Date());
-                String username = SecurityUtils.getUsername();
-                this.strictInsertFill(metaObject, "createBy", String.class, username != null ? username : "system");
-                this.strictInsertFill(metaObject, "updateBy", String.class, username != null ? username : "system");
+                Date now = new Date();
+                String username = currentUsername();
+                // 审计字段一律以服务端为准。
+                // strictInsertFill 只在字段为 null 时填充，客户端只要在请求体里带上
+                // createBy / createTime / updateBy，就会被原样写库，等于可以伪造创建人；
+                // 这里改为强制覆盖，使审计字段无法由客户端决定。
+                forceFill(metaObject, "createTime", now);
+                forceFill(metaObject, "updateTime", now);
+                forceFill(metaObject, "createBy", username);
+                forceFill(metaObject, "updateBy", username);
             }
 
             @Override
             public void updateFill(MetaObject metaObject) {
-                this.strictUpdateFill(metaObject, "updateTime", Date.class, new Date());
+                forceFill(metaObject, "updateTime", new Date());
+                forceFill(metaObject, "updateBy", currentUsername());
+            }
+
+            /** 仅在实体确实存在该属性时写入，避免对不含审计字段的实体报错 */
+            private void forceFill(MetaObject metaObject, String field, Object value) {
+                if (metaObject.hasSetter(field)) {
+                    metaObject.setValue(field, value);
+                }
+            }
+
+            private String currentUsername() {
                 String username = SecurityUtils.getUsername();
-                this.strictUpdateFill(metaObject, "updateBy", String.class, username != null ? username : "system");
+                return username != null ? username : "system";
             }
         };
     }

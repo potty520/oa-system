@@ -23,6 +23,7 @@ ACTIVE_TABLES = {
     "oa_outgoing_doc", "oa_doc_flow", "oa_doc_flow_step",
     "sys_post", "sys_user_post", "sys_role_dept", "sys_oper_log",
     "oa_document", "oa_doc_type", "oa_doc_template", "oa_doc_approval", "oa_doc_circulation", "oa_doc_reminder", "oa_doc_delegate", "oa_doc_archive",
+    "sys_token_revocation",
 }
 
 
@@ -52,17 +53,54 @@ def parse_type(raw: str) -> tuple[str, str]:
     return match.group(1), match.group(2) or ""
 
 
+# 只认 CREATE TABLE 本身，表体按括号配对截取：不能再把 ENGINE=InnoDB 当成结束标记，
+# 否则 sql/oa_init.sql 一旦改动表选项，整张表就会静默消失。
+CREATE_TABLE = re.compile(r"(?is)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?(\w+)`?\s*\(")
+
+
+def split_table_body(sql: str, start: int) -> str:
+    """从 CREATE TABLE 的左括号之后扫描到配对的右括号，返回表体。
+
+    扫描时跳过引号内的括号，列注释与默认值里都可能出现括号。
+    """
+    depth = 1
+    index = start
+    quote = ""
+    while index < len(sql):
+        char = sql[index]
+        if quote:
+            if char == "\\" and quote == "'":
+                index += 2
+                continue
+            if char == quote:
+                if quote == "'" and index + 1 < len(sql) and sql[index + 1] == "'":
+                    index += 2
+                    continue
+                quote = ""
+        elif char in "'\"`":
+            quote = char
+        elif char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return sql[start:index]
+        index += 1
+    raise ValueError("CREATE TABLE 语句括号不配对，无法确定表定义范围")
+
+
 def parse_schema() -> list[Table]:
     sql = SOURCE.read_text(encoding="utf-8")
     tables: list[Table] = []
-    for table_match in re.finditer(r"(?is)CREATE\s+TABLE\s+`?(\w+)`?\s*\((.*?)\)\s*ENGINE\s*=\s*InnoDB", sql):
+    parsed: list[str] = []
+    for table_match in CREATE_TABLE.finditer(sql):
         name = table_match.group(1)
         if name not in ACTIVE_TABLES:
             continue
         table = Table(name=name)
-        for raw_line in table_match.group(2).splitlines():
+        for raw_line in split_table_body(sql, table_match.end()).splitlines():
             line = raw_line.strip().rstrip(",")
-            if not line:
+            if not line or line.startswith("--") or line.startswith("#"):
                 continue
             primary = re.match(r"(?is)PRIMARY\s+KEY\s*\(([^)]+)\)", line)
             if primary:
@@ -79,7 +117,8 @@ def parse_schema() -> list[Table]:
                 continue
             column = re.match(r"(?is)`?(\w+)`?\s+([A-Z]+(?:\([^)]*\))?)(.*)$", line)
             if not column:
-                continue
+                # 解析不了就报错，不能让列（乃至整张表）静默消失
+                raise ValueError(f"无法解析 {name} 的列定义: {line}")
             kind, args = parse_type(column.group(2))
             rest = column.group(3)
             rest_wo_comment = re.sub(r"(?is)\s+COMMENT\s+'(?:''|[^'])*'", "", rest)
@@ -94,6 +133,13 @@ def parse_schema() -> list[Table]:
                 auto="AUTO_INCREMENT" in rest_wo_comment.upper(),
             ))
         tables.append(table)
+        parsed.append(name)
+    missing = sorted(ACTIVE_TABLES - set(parsed))
+    if missing:
+        raise ValueError("sql/oa_init.sql 中找不到活跃表的 CREATE TABLE 定义: " + ", ".join(missing))
+    duplicated = sorted({name for name in parsed if parsed.count(name) > 1})
+    if duplicated:
+        raise ValueError("sql/oa_init.sql 中活跃表被重复定义: " + ", ".join(duplicated))
     return tables
 
 
@@ -165,6 +211,8 @@ MENU_ROWS: list[tuple] = [
     (212, "公文模板新增", 90, 13, "", None, "F", "0", "0", "oa:docTemplate:add", "#"),
     (213, "公文模板修改", 90, 14, "", None, "F", "0", "0", "oa:docTemplate:edit", "#"),
     (214, "公文模板删除", 90, 15, "", None, "F", "0", "0", "oa:docTemplate:remove", "#"),
+    (215, "归档台账", 90, 16, "", None, "F", "0", "0", "oa:archive:list", "#"),
+    (216, "报销付款", 40, 8, "", None, "F", "0", "0", "oa:reimbursement:pay", "#"),
     (100, "系统管理", 0, 2, "system", None, "M", "0", "0", None, "setting"),
     (103, "用户管理", 100, 1, "user", "system/user/index", "C", "0", "0", "system:user:list", "user"),
     (104, "用户查询", 103, 1, "", None, "F", "0", "0", "system:user:query", "#"),
@@ -196,8 +244,9 @@ COMMON_ROLE_MENUS = [
     1, 10, 14, 20, 21, 22, 23, 24, 30, 31, 33, 34, 35, 36, 37,
     40, 41, 42, 43, 44, 45, 46, 50, 51, 60, 61, 80, 81, 90, 91, 93, 94, 95, 96,
 ]
-# 部门经理：在普通用户之上增加审批权、公文拟制与修改、流程查看、岗位查看。
-MANAGER_ROLE_MENUS = sorted(set(COMMON_ROLE_MENUS) | {32, 47, 52, 53, 62, 63, 70, 71, 92, 101, 121, 200})
+# 部门经理：在普通用户之上增加审批权、公文拟制与修改、流程查看、岗位查看、归档台账（215）、报销付款（216）。
+# 归档台账是全单位公文清单，属管理口径，因此只给管理员(1)与部门经理(3)，普通用户(2)不含。
+MANAGER_ROLE_MENUS = sorted(set(COMMON_ROLE_MENUS) | {32, 47, 52, 53, 62, 63, 70, 71, 92, 101, 121, 200, 215, 216})
 
 SEEDS: dict[str, tuple[list[str], list[tuple]]] = {
     "sys_dept": (["dept_id", "parent_id", "ancestors", "dept_name", "order_num", "leader", "phone", "email", "status"], [
@@ -240,6 +289,31 @@ SEEDS: dict[str, tuple[list[str], list[tuple]]] = {
         (1006, "函", "HAN", 0, 7, "0"), (1007, "纪要", "JY", 0, 8, "0"),
     ]),
 }
+
+
+def seeded_identity_start(table: Table) -> int:
+    """身份列的起始值由种子数据推导：必须大于种子显式写入的主键最大值。
+
+    运行期插入不带主键（IdType.AUTO），若身份列停在种子主键上（曾经写死为 1000），
+    第一次"新增公文类型"就会撞上种子里的 doc_type_id=1000。这里取 MAX(pk)+1，
+    种子上的主键一旦调整，起始值随之变化，两者不会再漂移。
+    """
+    auto = next((column for column in table.columns if column.auto), None)
+    if auto is None:
+        return 0
+    start = 1000
+    seed = SEEDS.get(table.name)
+    if seed is not None:
+        columns, rows = seed
+        if auto.name in columns:
+            index = columns.index(auto.name)
+            ids = [row[index] for row in rows if isinstance(row[index], int)]
+            if ids:
+                start = max(ids) + 1
+    return start
+
+
+IDENTITY_START: dict[str, int] = {table.name: seeded_identity_start(table) for table in TABLES}
 
 
 def type_for(col: Column, dialect: str) -> str:
@@ -290,7 +364,7 @@ def type_for(col: Column, dialect: str) -> str:
     raise ValueError(f"Unsupported type {kind} for {dialect}")
 
 
-def identity_type(col: Column, dialect: str) -> str:
+def identity_type(col: Column, dialect: str, start: int) -> str:
     base = {
         "mysql": f"{col.kind}({col.args})" if col.args else col.kind,
         "mariadb": f"{col.kind}({col.args})" if col.args else col.kind,
@@ -304,13 +378,13 @@ def identity_type(col: Column, dialect: str) -> str:
     if dialect in {"mysql", "mariadb"}:
         return base
     if dialect in {"postgresql", "h2", "kingbase"}:
-        return base + " GENERATED BY DEFAULT AS IDENTITY (START WITH 1000)"
+        return base + f" GENERATED BY DEFAULT AS IDENTITY (START WITH {start})"
     if dialect == "sqlserver":
-        return base + " IDENTITY(1000,1)"
+        return base + f" IDENTITY({start},1)"
     if dialect == "oracle":
-        return base + " GENERATED BY DEFAULT AS IDENTITY (START WITH 1000)"
+        return base + f" GENERATED BY DEFAULT AS IDENTITY (START WITH {start})"
     if dialect == "dm":
-        return base + " IDENTITY(1000,1)"
+        return base + f" IDENTITY({start},1)"
     return base
 
 
@@ -324,12 +398,12 @@ def render_default(value: str | None, dialect: str) -> str:
     return f" DEFAULT {value}"
 
 
-def render_column(col: Column, dialect: str, inline_pk: bool = False) -> str:
+def render_column(col: Column, dialect: str, start: int, inline_pk: bool = False) -> str:
     if col.auto:
         if dialect == "sqlite":
             text = "INTEGER PRIMARY KEY AUTOINCREMENT"
         else:
-            text = identity_type(col, dialect)
+            text = identity_type(col, dialect, start)
             if dialect in {"mysql", "mariadb"}:
                 text += " AUTO_INCREMENT"
     else:
@@ -343,10 +417,11 @@ def render_column(col: Column, dialect: str, inline_pk: bool = False) -> str:
 
 def render_table(table: Table, dialect: str) -> str:
     auto_col = next((col for col in table.columns if col.auto), None)
+    identity_start = IDENTITY_START[table.name]
     lines = []
     for col in table.columns:
         inline = dialect == "sqlite" and col is auto_col
-        lines.append(render_column(col, dialect, inline))
+        lines.append(render_column(col, dialect, identity_start, inline))
     if table.primary_key and not (dialect == "sqlite" and auto_col):
         lines.append(f"  PRIMARY KEY ({', '.join(table.primary_key)})")
     for name, cols in table.unique_keys:
@@ -361,7 +436,7 @@ def render_table(table: Table, dialect: str) -> str:
             lines.append(f"  KEY idx_{table.name}_{name} ({', '.join(cols)})")
     optional = ""
     if dialect in {"mysql", "mariadb"} and auto_col:
-        optional = " ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT=1000"
+        optional = f" ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 AUTO_INCREMENT={identity_start}"
     if_not_exists = "IF NOT EXISTS " if dialect in {"mysql", "mariadb", "postgresql", "sqlite", "h2", "kingbase"} else ""
     ddl = f"CREATE TABLE {if_not_exists}{table.name} (\n" + ",\n".join(lines) + f"\n){optional};"
     if dialect == "sqlserver":
@@ -475,7 +550,8 @@ def render_schema(dialect: str) -> str:
         for table in TABLES:
             if any(col.auto for col in table.columns):
                 auto = next(col for col in table.columns if col.auto)
-                statements.append(f"ALTER TABLE {table.name} ALTER COLUMN {auto.name} RESTART WITH 1000;")
+                statements.append(
+                    f"ALTER TABLE {table.name} ALTER COLUMN {auto.name} RESTART WITH {IDENTITY_START[table.name]};")
     return "\n\n".join(statements) + "\n"
 
 

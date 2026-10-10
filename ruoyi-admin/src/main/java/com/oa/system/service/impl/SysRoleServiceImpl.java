@@ -105,9 +105,23 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     }
 
     @Override
+    @Transactional
     public boolean removeById(java.io.Serializable roleId) {
+        if (roleId == null) {
+            throw new IllegalArgumentException("角色ID不能为空");
+        }
+        if (Long.valueOf(BUILT_IN_ADMIN_ROLE_ID).equals(roleId)) {
+            throw new IllegalArgumentException("内置超级管理员角色不允许删除");
+        }
         boolean removed = super.removeById(roleId);
         if (removed) {
+            // 角色删除后必须一并清理 sys_role_dept / sys_role_menu，
+            // 否则残留的部门数据范围与菜单授权会变成孤儿数据，被后续复用的 role_id 继承
+            if (roleId instanceof Number) {
+                Long id = ((Number) roleId).longValue();
+                baseMapper.deleteRoleDeptByRoleId(id);
+                baseMapper.deleteRoleMenuByRoleId(id);
+            }
             loginUserCache.evictAll();
         }
         return removed;

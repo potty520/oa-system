@@ -9,5 +9,9 @@ spring:
     init:
       mode: ${DB_INIT_MODE:always}
       encoding: UTF-8
+      # Oracle 的 DDL 没有 IF NOT EXISTS / IF OBJECT_ID 这类守卫写法，db/oracle/schema.sql 里的
+      # 28 条 CREATE TABLE、22 条 CREATE INDEX 都是无条件的，第二次启动必然报"对象已存在"。
+      # 所以这里必须容忍这一错误，改成 false 会让重复启动直接失败；种子的 MERGE 语句本身幂等。
+      # 代价是真正的错误也会被吞掉，只保留"脚本不含 DROP/TRUNCATE/DELETE"这条底线。
       continue-on-error: true
       schema-locations: classpath:db/oracle/schema.sql

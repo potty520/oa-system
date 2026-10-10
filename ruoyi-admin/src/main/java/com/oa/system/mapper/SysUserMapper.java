@@ -33,7 +33,9 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     List<SysUser> selectUsersByRoleId(@Param("roleId") Long roleId);
 
     @Select("SELECT DISTINCT rd.dept_id FROM sys_role_dept rd " +
-            "INNER JOIN sys_user_role ur ON ur.role_id = rd.role_id WHERE ur.user_id = #{userId}")
+            "INNER JOIN sys_role r ON r.role_id = rd.role_id " +
+            "INNER JOIN sys_user_role ur ON ur.role_id = rd.role_id " +
+            "WHERE ur.user_id = #{userId} AND r.status = '0' AND r.del_flag = '0'")
     List<Long> selectDataScopeDeptIdsByUserId(@Param("userId") Long userId);
 
     @Select("SELECT post_id FROM sys_user_post WHERE user_id = #{userId}")

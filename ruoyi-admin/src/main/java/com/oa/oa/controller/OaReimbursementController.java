@@ -78,6 +78,12 @@ public class OaReimbursementController extends BaseController {
         return toAjax(reimbursementService.approveOaReimbursement(reimbursement));
     }
 
+    @PreAuthorize("@ss.hasPermi('oa:reimbursement:pay')")
+    @PutMapping("/pay/{reimbId}")
+    public AjaxResult pay(@PathVariable Long reimbId) {
+        return toAjax(reimbursementService.payOaReimbursement(reimbId));
+    }
+
     @PreAuthorize("@ss.hasPermi('oa:reimbursement:query')")
     @GetMapping("/details/{reimbId}")
     public AjaxResult getDetails(@PathVariable Long reimbId) {

@@ -80,7 +80,7 @@ export default {
       getInfo(row.annId).then(res => {
         this.viewData = res.data || {}
         this.viewVisible = true
-      })
+      }).catch(() => {})
     }
   }
 }

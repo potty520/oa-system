@@ -17,7 +17,7 @@
         <el-select v-model="queryParams.status" placeholder="请选择状态" clearable>
           <el-option label="进行中" value="0" />
           <el-option label="已完成" value="1" />
-          <el-option label="已取消" value="2" />
+          <el-option label="已取消" value="3" />
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -175,7 +175,7 @@ export default {
         this.form = res.data || {}
         this.dialogTitle = '编辑日程'
         this.dialogVisible = true
-      })
+      }).catch(() => {})
     },
     handleDelete(row) {
       this.$confirm('确定删除该日程吗？', '提示', {
@@ -197,13 +197,13 @@ export default {
               this.$message.success('修改成功')
               this.dialogVisible = false
               this.getList()
-            })
+            }).catch(() => {})
           } else {
             add(this.form).then(() => {
               this.$message.success('新增成功')
               this.dialogVisible = false
               this.getList()
-            })
+            }).catch(() => {})
           }
         }
       })

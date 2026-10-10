@@ -37,7 +37,7 @@
           <el-col :span="12"><el-form-item label="发文编号" prop="docNumber"><el-input v-model="form.docNumber" /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="20">
-          <el-col :span="12"><el-form-item label="公文类型" prop="docTypeId"><el-select v-model="form.docTypeId" filterable clearable placeholder="请选择公文类型" style="width:100%"><el-option v-for="item in docTypeOptions" :key="item.docTypeId" :label="item.typeName" :value="item.docTypeId" :disabled="item.status !== '0'" /></el-select></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="公文类型" prop="docTypeId"><el-select v-model="form.docTypeId" filterable clearable placeholder="请选择公文类型" style="width:100%"><el-option v-for="item in docTypeOptions" :key="item.docTypeId" :label="item.typeName" :value="item.docTypeId" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="审批流程"><el-select v-model="form.flowId" clearable placeholder="仅一个流程时自动匹配" style="width:100%"><el-option v-for="item in flowOptions" :key="item.flowId" :label="item.flowName" :value="item.flowId" /></el-select></el-form-item></el-col>
         </el-row>
         <el-row :gutter="20">
@@ -78,8 +78,9 @@
 <script>
 import { list, getInfo, add, edit, remove, submit, sign } from '@/api/oa/outgoingDoc'
 import { listUserOptions } from '@/api/system/user'
-import { docTypeList } from '@/api/oa/docProcess'
+import { listDocTypeOptions } from '@/api/oa/docProcess'
 import { list as flowList } from '@/api/oa/docFlow'
+import { checkPermi } from '@/utils/permission'
 import DocActionDialog from '../components/DocActionDialog'
 const emptyForm = () => ({ docId: undefined, docTitle: '', docNumber: '', docTypeId: null, flowId: null, draftUnit: '', draftDate: '', docLevel: '1', docSecret: '1', mainSend: '', copySend: '', summary: '', attachmentUrl: '', signUserId: null, signUserName: '', remark: '' })
 export default {
@@ -101,15 +102,17 @@ export default {
     levelLabel(value) { return { '1': '普通', '2': '重要', '3': '紧急' }[value] || '普通' },
     secretLabel(value) { return { '1': '普通', '2': '秘密', '3': '机密', '4': '绝密' }[value] || '普通' },
     statusLabel(value) { return { '0': '草稿', '1': '审核中', '2': '已签发', '3': '已归档' }[value] || '未知' },
-    docTypeLabel(id) { const item = this.docTypeOptions.find(option => String(option.docTypeId) === String(id)); return item ? item.typeName : '未选择' },
-    getDocTypes() { docTypeList({}).then(res => { this.docTypeOptions = res.data || [] }) },
-    getFlows() { flowList({ pageNum: 1, pageSize: 100, flowType: '2', status: '0' }).then(res => { this.flowOptions = res.rows || [] }) },
+    // 公文类型走登录即可读的 /oa/docType/options，普通用户也能把 docTypeId 显示成名称；
+    // 流程下拉仍需 oa:docFlow:list，没有权限就跳过，否则必然 403
+    docTypeLabel(id) { if (id === null || id === undefined || id === '') return '未选择'; const item = this.docTypeOptions.find(option => String(option.docTypeId) === String(id)); return item ? item.typeName : '未知类型' },
+    getDocTypes() { listDocTypeOptions().then(res => { this.docTypeOptions = res.data || [] }).catch(() => {}) },
+    getFlows() { if (!checkPermi('oa:docFlow:list')) return; flowList({ pageNum: 1, pageSize: 100, flowType: '2', status: '0' }).then(res => { this.flowOptions = res.rows || [] }).catch(() => {}) },
     getUsers() { listUserOptions().then(res => { this.userOptions = res.data || [] }).catch(() => {}) },
     getList() { this.loading = true; list(this.queryParams).then(res => { this.tableData = res.rows || []; this.total = res.total || 0 }).finally(() => { this.loading = false }) },
     handleQuery() { this.queryParams.pageNum = 1; this.getList() },
     resetQuery() { this.$refs.queryForm.resetFields(); this.handleQuery() },
     handleAdd() { this.form = emptyForm(); if (this.flowOptions.length === 1) { this.form.flowId = this.flowOptions[0].flowId } this.dialogTitle = '新增发文'; this.dialogVisible = true },
-    handleUpdate(row) { getInfo(row.docId).then(res => { this.form = Object.assign(emptyForm(), res.data || {}); this.dialogTitle = '编辑发文'; this.dialogVisible = true }) },
+    handleUpdate(row) { getInfo(row.docId).then(res => { this.form = Object.assign(emptyForm(), res.data || {}); this.dialogTitle = '编辑发文'; this.dialogVisible = true }).catch(() => {}) },
     handleView(row) { this.viewData = { ...row }; this.viewVisible = true },
     openAction(row) { this.actionDocId = row.docId; this.actionVisible = true },
     handleSubmit(row) {
@@ -117,7 +120,7 @@ export default {
     },
     handleSign(row) { this.$confirm('确认签发该文件吗？', '提示', { type: 'warning' }).then(() => sign(row.docId)).then(() => { this.getList(); this.$message.success('签发成功') }).catch(() => {}) },
     handleDelete(row) { this.$confirm('确认删除该发文吗？', '提示', { type: 'warning' }).then(() => remove(row.docId)).then(() => { this.getList(); this.$message.success('删除成功') }).catch(() => {}) },
-    submitForm() { this.$refs.form.validate(valid => { if (!valid) return; const request = this.form.docId ? edit(this.form) : add(this.form); request.then(() => { this.$message.success(this.form.docId ? '修改成功' : '新增成功'); this.dialogVisible = false; this.getList() }) }) },
+    submitForm() { this.$refs.form.validate(valid => { if (!valid) return; const request = this.form.docId ? edit(this.form) : add(this.form); request.then(() => { this.$message.success(this.form.docId ? '修改成功' : '新增成功'); this.dialogVisible = false; this.getList() }).catch(() => {}) }) },
     resetForm() { this.form = emptyForm(); if (this.$refs.form) this.$refs.form.resetFields() }
   }
 }

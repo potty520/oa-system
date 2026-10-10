@@ -1,6 +1,7 @@
 package com.oa.oa.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oa.oa.domain.OaReimbursement;
 import com.oa.oa.domain.OaReimbursementApproveLog;
@@ -26,6 +27,15 @@ import java.util.List;
 
 @Service
 public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMapper, OaReimbursement> implements IOaReimbursementService {
+
+    /** 审批步骤终态：0 草稿/已撤回、1 审批中、2 审批结束 */
+    private static final int STEP_FINISHED = 2;
+
+    /** 单条明细金额上限，用于拦截明显的录入错误（例如多打了几个 0） */
+    private static final BigDecimal MAX_EXPENSE_AMOUNT = new BigDecimal("100000000");
+
+    /** 支付状态：0 待支付、1 已支付（与 oa_reimbursement.payment_status 的注释一致） */
+    private static final String PAYMENT_STATUS_PAID = "1";
 
     @Autowired
     private OaReimbursementDetailMapper detailMapper;
@@ -59,6 +69,8 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
     public OaReimbursement selectOaReimbursementById(Long reimbId) {
         OaReimbursement reimbursement = baseMapper.selectById(reimbId);
         if (reimbursement != null) {
+            // 单条读取同样受数据范围约束，避免用 id 遍历绕过列表接口的过滤
+            requireReadable(reimbursement);
             LambdaQueryWrapper<OaReimbursementDetail> detailWrapper = new LambdaQueryWrapper<>();
             detailWrapper.eq(OaReimbursementDetail::getReimbId, reimbId);
             reimbursement.setDetails(detailMapper.selectList(detailWrapper));
@@ -88,6 +100,7 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
         reimbursement.setApproveTime(null);
         reimbursement.setApproveRemark(null);
         // 金额以明细为准，避免客户端提交与明细不一致的总额
+        requireValidDetails(reimbursement.getDetails());
         reimbursement.setTotalAmount(sumDetails(reimbursement.getDetails()));
         int result = baseMapper.insert(reimbursement);
         insertDetails(reimbursement.getReimbId(), reimbursement.getDetails());
@@ -109,6 +122,7 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
         update.setReimbReason(reimbursement.getReimbReason());
         update.setRemark(reimbursement.getRemark());
         if (reimbursement.getDetails() != null) {
+            requireValidDetails(reimbursement.getDetails());
             update.setTotalAmount(sumDetails(reimbursement.getDetails()));
             LambdaQueryWrapper<OaReimbursementDetail> wrapper = new LambdaQueryWrapper<>();
             wrapper.eq(OaReimbursementDetail::getReimbId, existing.getReimbId());
@@ -187,18 +201,30 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
         if (!SecurityUtils.isAdmin(current) && current != null && current.equals(existing.getUserId())) {
             throw new AccessDeniedException("不能审批自己提交的报销单");
         }
+        // 只能审批落在本人数据范围内的报销单，口径与列表接口完全一致
+        if (!inDataScope(existing)) {
+            throw new AccessDeniedException("无权审批该报销单");
+        }
 
         Date now = new Date();
         OaReimbursement update = new OaReimbursement();
-        update.setReimbId(existing.getReimbId());
         update.setApprovalStatus(reimbursement.getApprovalStatus());
         update.setApproveBy(SecurityUtils.getUsername());
         update.setApproveTime(now);
         update.setApproveRemark(reimbursement.getApproveRemark());
+        update.setCurrentStep(STEP_FINISHED);
         if (ApprovalStatus.APPROVED.equals(reimbursement.getApprovalStatus())) {
             update.setPaymentStatus("0");
         }
-        int result = baseMapper.updateById(update);
+        // 条件更新（CAS）：只有仍处于“审批中”的记录才会被写入审批结果，
+        // 并发重复审批时后到的一次不会覆盖先到的决定，影响 0 行即说明状态已被别人改过
+        LambdaUpdateWrapper<OaReimbursement> pendingWrapper = new LambdaUpdateWrapper<>();
+        pendingWrapper.eq(OaReimbursement::getReimbId, existing.getReimbId())
+                .eq(OaReimbursement::getApprovalStatus, ApprovalStatus.PENDING);
+        int result = baseMapper.update(update, pendingWrapper);
+        if (result == 0) {
+            throw new IllegalArgumentException("该报销单已被其他人审批，请刷新后重试");
+        }
 
         OaReimbursementApproveLog log = new OaReimbursementApproveLog();
         log.setReimbId(existing.getReimbId());
@@ -209,6 +235,67 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
         approveLogMapper.insert(log);
 
         return result;
+    }
+
+    @Override
+    @Transactional
+    public int payOaReimbursement(Long reimbId) {
+        OaReimbursement existing = requireExisting(reimbId);
+        if (!ApprovalStatus.APPROVED.equals(existing.getApprovalStatus())) {
+            throw new IllegalArgumentException("只有已通过的报销单才能付款");
+        }
+        // 与审批同口径的权限判定：付款属于财务终点动作，同样受数据范围约束，
+        // 并且保留“不能给自己提交的单据付款”的职责分离规则，管理员仍然豁免
+        Long current = SecurityUtils.getUserId();
+        if (!SecurityUtils.isAdmin(current) && current != null && current.equals(existing.getUserId())) {
+            throw new AccessDeniedException("不能给自己提交的报销单付款");
+        }
+        if (!inDataScope(existing)) {
+            throw new AccessDeniedException("无权付款该报销单");
+        }
+
+        // 支付状态与支付时间只由服务端写入；接口不接收请求体（只有路径参数），
+        // 客户端没有可以塞 paymentStatus / paymentTime 的入口
+        OaReimbursement update = new OaReimbursement();
+        update.setPaymentStatus(PAYMENT_STATUS_PAID);
+        update.setPaymentTime(new Date());
+        // 条件更新（CAS）：只有“已通过且尚未支付”的记录才会被写入，
+        // 并发重复付款时后到的一次不会覆盖先到的支付时间，影响 0 行即说明已被别人付过
+        LambdaUpdateWrapper<OaReimbursement> unpaidWrapper = new LambdaUpdateWrapper<>();
+        unpaidWrapper.eq(OaReimbursement::getReimbId, existing.getReimbId())
+                .eq(OaReimbursement::getApprovalStatus, ApprovalStatus.APPROVED)
+                .and(query -> query.isNull(OaReimbursement::getPaymentStatus)
+                        .or().ne(OaReimbursement::getPaymentStatus, PAYMENT_STATUS_PAID));
+        int result = baseMapper.update(update, unpaidWrapper);
+        if (result == 0) {
+            throw new IllegalArgumentException("该报销单已付款或状态已变更，请刷新后重试");
+        }
+        return result;
+    }
+
+    /** 单条读取权限：本人、管理员，或通过数据范围（与列表接口同一口径）可见的记录。 */
+    private void requireReadable(OaReimbursement reimbursement) {
+        if (AccessGuards.isSelfOrAdmin(reimbursement.getUserId()) || inDataScope(reimbursement)) {
+            return;
+        }
+        throw new AccessDeniedException("无权查看该报销单");
+    }
+
+    /** 该记录是否落在当前登录用户的数据范围内。 */
+    private boolean inDataScope(OaReimbursement reimbursement) {
+        LambdaQueryWrapper<OaReimbursement> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(OaReimbursement::getReimbId, reimbursement.getReimbId());
+        dataScopeResolver.apply(wrapper, OaReimbursement::getUserId, OaReimbursement::getDeptId);
+        Long count = baseMapper.selectCount(wrapper);
+        return count != null && count > 0;
+    }
+
+    /** 明细与审批日志依附于主单：读取前先按主单的数据范围校验，主单不存在时保持原来的空结果。 */
+    private void requireMasterReadable(Long reimbId) {
+        OaReimbursement master = reimbId == null ? null : baseMapper.selectById(reimbId);
+        if (master != null) {
+            requireReadable(master);
+        }
     }
 
     private OaReimbursement requireExisting(Long reimbId) {
@@ -234,6 +321,33 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
         }
     }
 
+    /**
+     * 明细金额一律由服务端校验：不能为空、不能为负、不能超过上限。
+     *
+     * <p>前端表单虽然有 {@code :min="0"}，但客户端校验只是提示，服务端才是唯一可信边界：
+     * 直接调用接口提交负数明细会让合计变成负数。</p>
+     */
+    private void requireValidDetails(List<OaReimbursementDetail> details) {
+        if (details == null) {
+            return;
+        }
+        for (OaReimbursementDetail detail : details) {
+            if (detail == null) {
+                continue;
+            }
+            BigDecimal amount = detail.getExpenseAmount();
+            if (amount == null) {
+                throw new IllegalArgumentException("报销明细金额不能为空");
+            }
+            if (amount.signum() < 0) {
+                throw new IllegalArgumentException("报销明细金额不能为负数");
+            }
+            if (amount.compareTo(MAX_EXPENSE_AMOUNT) > 0) {
+                throw new IllegalArgumentException("单条报销明细金额不能超过 " + MAX_EXPENSE_AMOUNT.toPlainString());
+            }
+        }
+    }
+
     private BigDecimal sumDetails(List<OaReimbursementDetail> details) {
         BigDecimal total = BigDecimal.ZERO;
         if (details == null) {
@@ -249,6 +363,7 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
 
     @Override
     public List<OaReimbursementDetail> getReimbursementDetails(Long reimbId) {
+        requireMasterReadable(reimbId);
         LambdaQueryWrapper<OaReimbursementDetail> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OaReimbursementDetail::getReimbId, reimbId);
         return detailMapper.selectList(wrapper);
@@ -256,6 +371,7 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
 
     @Override
     public List<OaReimbursementApproveLog> getApproveLogs(Long reimbId) {
+        requireMasterReadable(reimbId);
         LambdaQueryWrapper<OaReimbursementApproveLog> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(OaReimbursementApproveLog::getReimbId, reimbId)
                 .orderByDesc(OaReimbursementApproveLog::getApproveTime);

@@ -221,6 +221,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new IllegalArgumentException(violation);
         }
         SysUser existing = baseMapper.selectById(user.getUserId());
+        // 与 updateUser/changeStatus/deleteUserByIds 保持同一道越权兼底：
+        // 缺了这层校验，任何持有 system:user:resetPwd 的人都能重置内置超管口令并接管系统
+        requireCanManage(user.getUserId(), null);
         SysUser update = new SysUser();
         update.setUserId(user.getUserId());
         update.setPassword(SecurityUtils.encryptPassword(user.getPassword()));

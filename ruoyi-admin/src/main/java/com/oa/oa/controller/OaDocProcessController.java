@@ -50,8 +50,10 @@ public class OaDocProcessController extends BaseController {
         return AjaxResult.success(docProcessService.getMyDone());
     }
 
-    // 归档台账是全单位的公文清单，只开放给收发文管理岗
-    @PreAuthorize("@ss.hasAnyPermi('oa:incomingDoc:list,oa:outgoingDoc:list')")
+    // 归档台账是全单位的公文清单，属管理口径：用专用权限 oa:archive:list 控制，
+    // 只授予超级管理员与部门经理。此前用 oa:incomingDoc:list 判断，而普通用户也持有该权限，
+    // 等于普通员工可以读到全单位的归档记录。
+    @PreAuthorize("@ss.hasPermi('oa:archive:list')")
     @GetMapping("/archive/list")
     public TableDataInfo archiveList(OaDocArchive archive) {
         startPage();

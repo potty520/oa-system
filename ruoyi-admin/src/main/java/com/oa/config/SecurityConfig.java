@@ -80,6 +80,21 @@ public class SecurityConfig {
             .antMatchers("/oa/announcement/published/**").permitAll()
             .anyRequest().authenticated()
             .and()
+            // 区分“未认证”与“已认证但无权限”：
+            // 不加 AuthenticationEntryPoint 时 Spring Security 默认用 Http403ForbiddenEntryPoint，
+            // 未登录/令牌过期也会返回 403，前端只能把它当成“没有操作权限”，无法触发重新登录。
+            .exceptionHandling()
+            .authenticationEntryPoint((request, response, authException) -> {
+                response.setStatus(javax.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"code\":401,\"msg\":\"登录状态已失效，请重新登录\"}");
+            })
+            .accessDeniedHandler((request, response, accessDeniedException) -> {
+                response.setStatus(javax.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"code\":403,\"msg\":\"没有操作权限\"}");
+            })
+            .and()
             .headers().frameOptions().sameOrigin()
             .and()
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -143,8 +143,10 @@ export default {
     }
   },
   computed: {
-    // 归档台账是全单位的公文清单，后端只开放给收发文管理岗，普通用户不展示该页签
-    canManageArchive() { return checkPermi(['oa:incomingDoc:list', 'oa:outgoingDoc:list']) },
+    // 归档台账是全单位的公文清单，属管理口径：后端用专用权限 oa:archive:list 控制，
+    // 只授予超级管理员与部门经理。此前这里判断的是 oa:incomingDoc:list（普通用户也有），
+    // 与后端注释所称的"只开放给管理岗"不一致。
+    canManageArchive() { return checkPermi('oa:archive:list') },
     // 下面三个页签同理：没有列表权限就不渲染，否则 loadAll 会拉回一串 403 提示
     canManageDocType() { return checkPermi('oa:docType:list') },
     canManageTemplate() { return checkPermi('oa:docTemplate:list') },
@@ -171,12 +173,12 @@ export default {
         this.docTypeOptions = types.data || []
         this.templateList = templates.data || []
         this.documentList = documents.rows || []
-      }).finally(() => { this.loading = false })
+      }).catch(() => {}).finally(() => { this.loading = false })
     },
     docTypeLabel(id) { const item = this.docTypeOptions.find(option => String(option.docTypeId) === String(id)); return item ? item.typeName : '未选择' },
     openTemplateDialog(row) { this.templateForm = row ? { ...row } : { templateName: '', docType: '2', docTypeId: null, redHeaderText: '', titleFont: 'SimSun', titleSize: 22, bodyFont: 'FangSong', bodySize: 16, templateContent: '', status: '0' }; this.templatePreview = { ...this.templateForm }; this.templateDialogVisible = true },
     previewTemplate(row) { this.templatePreview = { ...row }; this.templateForm = { ...row }; this.templateDialogVisible = true },
-    submitTemplate() { this.$refs.templateForm.validate(valid => { if (!valid) return; const request = this.templateForm.templateId ? editDocTemplate(this.templateForm) : addDocTemplate(this.templateForm); request.then(() => { this.$message.success('保存成功'); this.templateDialogVisible = false; this.loadAll() }) }) },
+    submitTemplate() { this.$refs.templateForm.validate(valid => { if (!valid) return; const request = this.templateForm.templateId ? editDocTemplate(this.templateForm) : addDocTemplate(this.templateForm); request.then(() => { this.$message.success('保存成功'); this.templateDialogVisible = false; this.loadAll() }).catch(() => {}) }) },
     deleteTemplate(row) { this.$confirm('确认删除该模板吗？', '提示', { type: 'warning' }).then(() => removeDocTemplate(row.templateId)).then(() => { this.$message.success('删除成功'); this.loadAll() }).catch(() => {}) },
     uploadDocument(request) { const data = new FormData(); data.append('file', request.file); uploadDocumentApi(data).then(() => { this.$message.success('上传成功'); this.loadAll() }).catch(() => request.onError()) },
     downloadDocument(row) {
@@ -189,11 +191,11 @@ export default {
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
-      })
+      }).catch(() => {})
     },
     deleteDocument(row) { this.$confirm('确认删除该附件吗？', '提示', { type: 'warning' }).then(() => removeDocumentApi(row.documentId)).then(() => { this.$message.success('删除成功'); this.loadAll() }).catch(() => {}) },
     formatSize(size) { if (!size) return '0 B'; if (size < 1024) return size + ' B'; if (size < 1048576) return (size / 1024).toFixed(1) + ' KB'; return (size / 1048576).toFixed(1) + ' MB' },
-    handleRead(row) { markRead(row.circulationId).then(() => { this.$message.success('已标记为已读'); this.loadAll() }) },
+    handleRead(row) { markRead(row.circulationId).then(() => { this.$message.success('已标记为已读'); this.loadAll() }).catch(() => {}) },
     openTypeDialog(row) {
       this.typeForm = row ? { ...row } : { typeName: '', typeCode: '', sortOrder: 0, status: '0' }
       this.typeDialogVisible = true
@@ -202,7 +204,7 @@ export default {
       this.$refs.typeForm.validate(valid => {
         if (!valid) return
         const request = this.typeForm.docTypeId ? editDocType(this.typeForm) : addDocType(this.typeForm)
-        request.then(() => { this.$message.success('保存成功'); this.typeDialogVisible = false; this.loadAll() })
+        request.then(() => { this.$message.success('保存成功'); this.typeDialogVisible = false; this.loadAll() }).catch(() => {})
       })
     },
     deleteType(row) {

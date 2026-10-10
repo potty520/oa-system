@@ -1,6 +1,7 @@
 package com.oa.oa.controller;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.oa.common.constant.Constants;
 import com.oa.common.core.controller.BaseController;
 import com.oa.common.core.result.AjaxResult;
 import com.oa.oa.domain.OaDocType;
@@ -26,6 +27,23 @@ public class OaDocTypeController extends BaseController {
                 .orderByAsc(OaDocType::getSortOrder);
         List<OaDocType> list = docTypeMapper.selectList(wrapper);
         return AjaxResult.success(list);
+    }
+
+    /**
+     * 公文类型下拉选项。任何已登录用户都可读：收文/发文列表要把 docTypeId 显示成类型名称，
+     * 而 /list 带 oa:docType:list 权限，普通用户调用必然 403。
+     *
+     * <p>与 /system/user/options 同一思路：不加 @PreAuthorize（仍由 SecurityConfig 的
+     * anyRequest().authenticated() 保证必须登录），但只返回下拉/标签所需的最小字段，
+     * 已停用的类型不返回 —— 前端下拉原本也是用 :disabled 把这些项挡掉的。</p>
+     */
+    @GetMapping("/options")
+    public AjaxResult options() {
+        LambdaQueryWrapper<OaDocType> wrapper = new LambdaQueryWrapper<>();
+        wrapper.select(OaDocType::getDocTypeId, OaDocType::getTypeName, OaDocType::getTypeCode)
+                .eq(OaDocType::getStatus, Constants.STATUS_NORMAL)
+                .orderByAsc(OaDocType::getSortOrder);
+        return AjaxResult.success(docTypeMapper.selectList(wrapper));
     }
 
     @PreAuthorize("@ss.hasPermi('oa:docType:query')")

@@ -47,14 +47,22 @@
           <el-tag v-else type="info">已撤回</el-tag>
         </template>
       </el-table-column>
+      <el-table-column label="付款状态" prop="paymentStatus" width="100" align="center">
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.paymentStatus === '1'" type="success">已付款</el-tag>
+          <el-tag v-else type="info">未付款</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="付款时间" prop="paymentTime" width="160" align="center" />
       <el-table-column label="申请时间" prop="applyTime" width="160" align="center" />
-      <el-table-column label="操作" min-width="280" align="center">
+      <el-table-column label="操作" min-width="340" align="center">
         <template slot-scope="scope">
           <el-button v-if="scope.row.approvalStatus === '0'" v-hasPermi="['oa:reimbursement:edit']" size="mini" type="text" icon="el-icon-edit" @click="handleUpdate(scope.row)">编辑</el-button>
           <el-button v-if="scope.row.approvalStatus === '0'" v-hasPermi="['oa:reimbursement:remove']" size="mini" type="text" icon="el-icon-delete" @click="handleDelete(scope.row)">删除</el-button>
           <el-button v-if="scope.row.approvalStatus === '0'" v-hasPermi="['oa:reimbursement:submit']" size="mini" type="text" icon="el-icon-s-promotion" @click="handleSubmit(scope.row)">提交</el-button>
           <el-button v-if="scope.row.approvalStatus === '1'" v-hasPermi="['oa:reimbursement:withdraw']" size="mini" type="text" icon="el-icon-refresh-left" @click="handleWithdraw(scope.row)">撤回</el-button>
           <el-button v-if="scope.row.approvalStatus === '1'" v-hasPermi="['oa:reimbursement:approve']" size="mini" type="text" icon="el-icon-check" @click="handleApprove(scope.row)">审批</el-button>
+          <el-button v-if="scope.row.approvalStatus === '2' && scope.row.paymentStatus !== '1'" v-hasPermi="['oa:reimbursement:pay']" size="mini" type="text" icon="el-icon-money" @click="handlePay(scope.row)">付款</el-button>
           <el-button size="mini" type="text" icon="el-icon-view" @click="handleView(scope.row)">详情</el-button>
         </template>
       </el-table-column>
@@ -137,6 +145,8 @@
         <el-descriptions-item label="报销事由" :span="2">{{ viewData.reimbReason }}</el-descriptions-item>
         <el-descriptions-item label="申请时间">{{ viewData.applyTime }}</el-descriptions-item>
         <el-descriptions-item label="审批人">{{ viewData.approveBy }}</el-descriptions-item>
+        <el-descriptions-item label="付款状态">{{ viewData.paymentStatus === '1' ? '已付款' : '未付款' }}</el-descriptions-item>
+        <el-descriptions-item label="付款时间">{{ viewData.paymentTime }}</el-descriptions-item>
         <el-descriptions-item label="备注" :span="2">{{ viewData.remark }}</el-descriptions-item>
       </el-descriptions>
       <el-table :data="viewData.details || []" border style="margin-top:15px">
@@ -168,7 +178,7 @@
 </template>
 
 <script>
-import { list, getInfo, saveWithDetails, edit, remove, submit, withdraw, approve, getDetails } from '@/api/oa/reimbursement'
+import { list, getInfo, saveWithDetails, edit, remove, submit, withdraw, approve, pay, getDetails } from '@/api/oa/reimbursement'
 
 const emptyDetail = () => ({ expenseType: '', expenseDate: '', expenseAmount: 0, expenseDesc: '' })
 
@@ -266,6 +276,12 @@ export default {
     handleApprove(row) {
       this.approveForm = { reimbId: row.reimbId, approvalStatus: '2', approveRemark: '' }
       this.approveVisible = true
+    },
+    handlePay(row) {
+      this.$confirm('确定将该报销单标记为已付款吗？', '提示', { type: 'warning' }).then(() => pay(row.reimbId)).then(() => {
+        this.getList()
+        this.$message.success('付款成功')
+      }).catch(() => {})
     },
     submitApprove() {
       this.$refs.approveForm.validate(valid => {

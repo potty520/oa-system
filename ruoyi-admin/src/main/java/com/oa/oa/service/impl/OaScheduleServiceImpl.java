@@ -10,6 +10,7 @@ import com.oa.security.utils.AccessGuards;
 import com.oa.security.utils.SecurityUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -48,7 +49,27 @@ public class OaScheduleServiceImpl extends ServiceImpl<OaScheduleMapper, OaSched
 
     @Override
     public OaSchedule selectOaScheduleById(Long scheduleId) {
-        return baseMapper.selectById(scheduleId);
+        OaSchedule existing = scheduleId == null ? null : baseMapper.selectById(scheduleId);
+        if (existing != null) {
+            // 单条读取同样受数据范围约束，避免用 id 遍历绕过列表接口的过滤
+            requireReadable(existing);
+        }
+        return existing;
+    }
+
+    /** 单条读取权限：本人、管理员，或通过数据范围（与列表接口同一口径）可见的记录。 */
+    private void requireReadable(OaSchedule schedule) {
+        if (AccessGuards.isSelfOrAdmin(schedule.getUserId())) {
+            return;
+        }
+        LambdaQueryWrapper<OaSchedule> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(OaSchedule::getScheduleId, schedule.getScheduleId());
+        // oa_schedule 没有部门列，与列表一致只按归属人过滤
+        dataScopeResolver.apply(wrapper, OaSchedule::getUserId, null);
+        Long count = baseMapper.selectCount(wrapper);
+        if (count == null || count == 0) {
+            throw new AccessDeniedException("无权查看该日程");
+        }
     }
 
     @Override

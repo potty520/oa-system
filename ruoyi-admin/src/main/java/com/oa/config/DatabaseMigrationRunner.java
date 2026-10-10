@@ -1,5 +1,6 @@
 package com.oa.config;
 
+import com.oa.common.constant.Constants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -73,18 +74,23 @@ public class DatabaseMigrationRunner implements ApplicationRunner {
 
     /**
      * 补齐老库的 must_change_pwd 取值：新增列后历史行为 NULL，统一回填 '0'；
-     * 仍在使用内置演示口令 admin123 的账号则强制首次登录改密。
+     * 仍在使用内置演示口令 admin123 的账号则直接作废其口令（写回占位符
+     * {@link Constants#PENDING_PASSWORD}），由 {@code InitialAccountInitializer} 重新初始化。
+     *
+     * <p>只标记 must_change_pwd 不足以阻断 admin/admin123：一旦强制改密的服务端校验被绕过或缺失，
+     * 这个公开口令就能一直登录，所以这里必须把凭据本身置为不可用。</p>
      */
     private void migrateMustChangePwd(Connection connection) throws SQLException {
         try (Statement statement = connection.createStatement()) {
             statement.executeUpdate("UPDATE sys_user SET must_change_pwd = '0' WHERE must_change_pwd IS NULL");
         }
         try (PreparedStatement update = connection.prepareStatement(
-                "UPDATE sys_user SET must_change_pwd = '1' WHERE password = ?")) {
-            update.setString(1, LEGACY_DEMO_PASSWORD_HASH);
+                "UPDATE sys_user SET password = ?, must_change_pwd = '1' WHERE password = ?")) {
+            update.setString(1, Constants.PENDING_PASSWORD);
+            update.setString(2, LEGACY_DEMO_PASSWORD_HASH);
             int rows = update.executeUpdate();
             if (rows > 0) {
-                log.warn("检测到 {} 个账号仍在使用内置演示口令，已标记为首次登录必须修改密码", rows);
+                log.warn("检测到 {} 个账号仍在使用内置演示口令 admin123，已作废其口令并置为待重新初始化（must_change_pwd='1'）", rows);
             }
         }
     }

@@ -29,6 +29,8 @@ router.beforeEach(async (to, from, next) => {
 
   try {
     await store.dispatch('user/GetInfo')
+    // 权限到手后再生成可见菜单，避免普通用户看到无权访问的菜单
+    await store.dispatch('permission/GenerateRoutes')
     next()
   } catch (error) {
     // token 已失效或账号被停用：清本地会话后回登录页

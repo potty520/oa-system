@@ -1,6 +1,6 @@
-param(
+﻿param(
     [string]$BaseUrl = 'http://localhost:18081/api',
-    # 仓库不再内置默认口令，admin 初始密码来自启动日志或 OA_INIT_ADMIN_PASSWORD
+    # 仓库不再内置默认口令，admin 初始密码由启动时生成并写入 app.init-password-file（默认 ./oa-init-passwords.txt），或由 OA_INIT_ADMIN_PASSWORD 提供
     [string]$AdminPassword = $env:OA_INIT_ADMIN_PASSWORD
 )
 
@@ -25,12 +25,19 @@ function Invoke-Api {
     )
     $headers = @{}
     if ($Token) { $headers.Authorization = 'Bearer ' + $Token }
-    $params = @{ Uri = $BaseUrl + $Path; Method = $Method; Headers = $headers; TimeoutSec = 10 }
+    $params = @{ Uri = $BaseUrl + $Path; Method = $Method; Headers = $headers; TimeoutSec = 10; UseBasicParsing = $true }
     if ($null -ne $Body) {
-        $params.ContentType = 'application/json'
-        $params.Body = ($Body | ConvertTo-Json -Depth 12 -Compress)
+        # 必须以 UTF-8 字节提交：Windows PowerShell 5.1 在 ContentType 未声明 charset 时
+        # 会按 ANSI/Latin-1 编码请求体，中文会被写成 ????，随后按中文检索自然查不到记录。
+        $params.ContentType = 'application/json; charset=utf-8'
+        $params.Body = [System.Text.Encoding]::UTF8.GetBytes(($Body | ConvertTo-Json -Depth 12 -Compress))
     }
-    return Invoke-RestMethod @params
+    $resp = Invoke-WebRequest @params
+    # 响应同样必须自己按 UTF-8 解码：Spring 返回的 Content-Type 不带 charset，
+    # 而 Windows PowerShell 5.1 在缺少 charset 时会退回 ISO-8859-1，中文变乱码，
+    # 于是“按中文名新建后再比对名字”这类断言会失败。
+    $json = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
+    return ($json | ConvertFrom-Json)
 }
 
 $token = $null
@@ -38,7 +45,7 @@ $createdIds = @{}
 
 try {
     $wrong = Invoke-Api 'Post' '/login' @{ username = 'admin'; password = 'wrong-password' }
-    Assert-Test ($wrong.code -eq 500) '错误密码拒绝' $wrong.msg
+    Assert-Test ($wrong.code -eq 400) '错误密码拒绝' $wrong.msg
 
     try {
         Invoke-Api 'Get' '/system/user/list?pageNum=1&pageSize=10' $null $null | Out-Null
@@ -69,7 +76,7 @@ try {
 
     $disable = Invoke-Api 'Put' '/system/user/changeStatus' @{ userId = $user.userId; status = '1' } $token
     $disabledLogin = Invoke-Api 'Post' '/login' @{ username = $userName; password = 'Test123456' }
-    Assert-Test ($disable.code -eq 200 -and $disabledLogin.code -eq 500) '用户停用生效' $disabledLogin.msg
+    Assert-Test ($disable.code -eq 200 -and $disabledLogin.code -eq 403) '用户停用生效' $disabledLogin.msg
 
     $enable = Invoke-Api 'Put' '/system/user/changeStatus' @{ userId = $user.userId; status = '0' } $token
     $reset = Invoke-Api 'Put' '/system/user/resetPwd' @{ userId = $user.userId; password = 'NewPass123' } $token
@@ -160,6 +167,8 @@ try {
     Invoke-Api 'Post' '/oa/outgoingDoc' @{
         docNumber = "OUT-$suffix"; docTitle = "自动化发文$suffix"; draftUnit = '测试部门'; draftDate = '2026-09-18'
         docLevel = '1'; docSecret = '1'; mainSend = '测试单位'; summary = '测试发文'; status = '0'
+        # 必须指定签发人，否则签发步骤会被服务端拒绝；且签发人不能是起草人本人（禁止自签）
+        signUserId = 2
     } $token | Out-Null
     $outgoingList = Invoke-Api 'Get' ("/oa/outgoingDoc/list?pageNum=1&pageSize=20&docNumber=OUT-" + $suffix) $null $token
     $outgoing = $outgoingList.rows | Select-Object -First 1

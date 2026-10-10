@@ -116,11 +116,11 @@
       <el-form ref="approveForm" :model="approveForm" :rules="approveRules" label-width="80px">
         <el-form-item label="审批结果" prop="approvalStatus">
           <el-radio-group v-model="approveForm.approvalStatus">
-            <el-radio :label="1">通过</el-radio>
-            <el-radio :label="2">拒绝</el-radio>
+            <el-radio label="2">通过</el-radio>
+            <el-radio label="3">拒绝</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="审批意见" prop="approveRemark">
+        <el-form-item label="审批意见" prop="remark">
           <el-input v-model="approveForm.remark" type="textarea" :rows="3" placeholder="请输入审批意见" />
         </el-form-item>
       </el-form>
@@ -168,7 +168,8 @@ export default {
       approveVisible: false,
       approveForm: {
         leaveId: undefined,
-        approvalStatus: '2',
+        // 必须留空：默认给 '2'（通过）会让“打开审批框直接点确定”变成静默通过
+        approvalStatus: '',
         remark: ''
       },
       approveRules: {
@@ -209,7 +210,7 @@ export default {
         this.form = res.data || {}
         this.dialogTitle = '编辑请假'
         this.dialogVisible = true
-      })
+      }).catch(() => {})
     },
     handleDelete(row) {
       this.$confirm('确定删除该请假记录吗？', '提示', {
@@ -250,7 +251,8 @@ export default {
     handleApprove(row) {
       this.approveForm = {
         leaveId: row.leaveId,
-        approvalStatus: '2',
+        // 留空强制显式选择，避免默认“通过”造成静默审批
+        approvalStatus: '',
         remark: ''
       }
       this.approveVisible = true
@@ -262,7 +264,7 @@ export default {
             this.$message.success('审批成功')
             this.approveVisible = false
             this.getList()
-          })
+          }).catch(() => {})
         }
       })
     },
@@ -274,13 +276,13 @@ export default {
               this.$message.success('修改成功')
               this.dialogVisible = false
               this.getList()
-            })
+            }).catch(() => {})
           } else {
             add(this.form).then(() => {
               this.$message.success('新增成功')
               this.dialogVisible = false
               this.getList()
-            })
+            }).catch(() => {})
           }
         }
       })

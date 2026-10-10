@@ -77,8 +77,8 @@ export default {
     handleQuery() { this.queryParams.pageNum = 1; this.getList() },
     resetQuery() { this.$refs.queryForm.resetFields(); this.handleQuery() },
     handleAdd() { this.form = emptyForm(); this.dialogTitle = '新增流程'; this.dialogVisible = true },
-    handleUpdate(row) { getInfo(row.flowId).then(res => { const data = res.data || {}; data.steps = data.steps && data.steps.length ? data.steps : [emptyStep()]; this.form = data; this.dialogTitle = '编辑流程'; this.dialogVisible = true }) },
-    handleView(row) { getInfo(row.flowId).then(res => { this.viewData = res.data || {}; this.viewVisible = true }) },
+    handleUpdate(row) { getInfo(row.flowId).then(res => { const data = res.data || {}; data.steps = data.steps && data.steps.length ? data.steps : [emptyStep()]; this.form = data; this.dialogTitle = '编辑流程'; this.dialogVisible = true }).catch(() => {}) },
+    handleView(row) { getInfo(row.flowId).then(res => { this.viewData = res.data || {}; this.viewVisible = true }).catch(() => {}) },
     handleDelete(row) { this.$confirm('确认删除该流程吗？', '提示', { type: 'warning' }).then(() => remove(row.flowId)).then(() => { this.getList(); this.$message.success('删除成功') }).catch(() => {}) },
     addStep() { this.form.steps.push({ ...emptyStep(), stepOrder: this.form.steps.length + 1 }) },
     removeStep(index) { if (this.form.steps.length > 1) this.form.steps.splice(index, 1) },
@@ -87,7 +87,7 @@ export default {
         if (!valid) return
         this.form.steps = this.form.steps.map((step, index) => ({ ...step, stepOrder: index + 1 }))
         const request = this.form.flowId ? edit(this.form) : add(this.form)
-        request.then(() => { this.$message.success(this.form.flowId ? '修改成功' : '新增成功'); this.dialogVisible = false; this.getList() })
+        request.then(() => { this.$message.success(this.form.flowId ? '修改成功' : '新增成功'); this.dialogVisible = false; this.getList() }).catch(() => {})
       })
     }
   }

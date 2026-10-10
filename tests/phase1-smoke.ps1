@@ -1,6 +1,6 @@
-param(
+﻿param(
   [string]$BaseUrl='http://localhost:18081/api',
-  # 仓库不再内置默认口令，admin 初始密码来自启动日志或 OA_INIT_ADMIN_PASSWORD
+  # 仓库不再内置默认口令，admin 初始密码由启动时生成并写入 app.init-password-file（默认 ./oa-init-passwords.txt），或由 OA_INIT_ADMIN_PASSWORD 提供
   [string]$AdminPassword=$env:OA_INIT_ADMIN_PASSWORD,
   [string]$CommonPassword=$env:OA_INIT_ZHANGSAN_PASSWORD
 )
@@ -11,7 +11,7 @@ function Api($method,$path,$body,$token) {
   $headers=@{}
   if($token){$headers.Authorization='Bearer '+$token}
   $params=@{Uri=$BaseUrl+$path;Method=$method;Headers=$headers;TimeoutSec=10}
-  if($null -ne $body){$params.ContentType='application/json';$params.Body=$body|ConvertTo-Json -Depth 10 -Compress}
+  if($null -ne $body){$params.ContentType='application/json; charset=utf-8';$params.Body=[System.Text.Encoding]::UTF8.GetBytes(($body|ConvertTo-Json -Depth 10 -Compress))}
   Invoke-RestMethod @params
 }
 $login=Api Post '/login' @{username='admin';password=$AdminPassword} $null

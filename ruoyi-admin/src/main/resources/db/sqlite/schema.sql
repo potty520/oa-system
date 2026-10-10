@@ -535,6 +535,15 @@ CREATE TABLE IF NOT EXISTS oa_doc_archive (
 
 CREATE INDEX IF NOT EXISTS idx_oa_doc_archive_idx_doc ON oa_doc_archive(doc_id, doc_type);
 
+CREATE TABLE IF NOT EXISTS sys_token_revocation (
+  revoke_key TEXT NOT NULL,
+  revoked_at TEXT NOT NULL,
+  expire_time TEXT NOT NULL,
+  PRIMARY KEY (revoke_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sys_token_revocation_idx_revoke_expire ON sys_token_revocation(expire_time);
+
 
 
 -- System seed data
@@ -631,6 +640,8 @@ INSERT OR IGNORE INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, 
 (212, '公文模板新增', 90, 13, '', NULL, 'F', '0', '0', 'oa:docTemplate:add', '#'),
 (213, '公文模板修改', 90, 14, '', NULL, 'F', '0', '0', 'oa:docTemplate:edit', '#'),
 (214, '公文模板删除', 90, 15, '', NULL, 'F', '0', '0', 'oa:docTemplate:remove', '#'),
+(215, '归档台账', 90, 16, '', NULL, 'F', '0', '0', 'oa:archive:list', '#'),
+(216, '报销付款', 40, 8, '', NULL, 'F', '0', '0', 'oa:reimbursement:pay', '#'),
 (100, '系统管理', 0, 2, 'system', NULL, 'M', '0', '0', NULL, 'setting'),
 (103, '用户管理', 100, 1, 'user', 'system/user/index', 'C', '0', '0', 'system:user:list', 'user'),
 (104, '用户查询', 103, 1, '', NULL, 'F', '0', '0', 'system:user:query', '#'),
@@ -717,6 +728,8 @@ INSERT OR IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 212),
 (1, 213),
 (1, 214),
+(1, 215),
+(1, 216),
 (1, 100),
 (1, 103),
 (1, 104),
@@ -820,7 +833,9 @@ INSERT OR IGNORE INTO sys_role_menu (role_id, menu_id) VALUES
 (3, 96),
 (3, 101),
 (3, 121),
-(3, 200);
+(3, 200),
+(3, 215),
+(3, 216);
 
 INSERT OR IGNORE INTO oa_doc_type (doc_type_id, type_name, type_code, parent_id, sort_order, status) VALUES
 (1000, '通知', 'TZ', 0, 1, '0'),

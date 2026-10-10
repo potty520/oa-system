@@ -68,6 +68,13 @@ export function approve(data) {
   })
 }
 
+export function pay(id) {
+  return request({
+    url: '/oa/reimbursement/pay/' + id,
+    method: 'put'
+  })
+}
+
 export function getDetails(id) {
   return request({
     url: '/oa/reimbursement/details/' + id,

@@ -98,7 +98,7 @@ export default {
       if (this.userOptions.length === 0) {
         listUserOptions().then(res => { this.userOptions = res.data || [] }).catch(() => {})
       }
-      if (this.docId) timeline(this.docType, this.docId).then(res => { this.timeline = res.data || {} })
+      if (this.docId) timeline(this.docType, this.docId).then(res => { this.timeline = res.data || {} }).catch(() => {})
     },
     submit() {
       if (!this.form.action) { this.$message.warning('请选择操作类型'); return }
@@ -106,7 +106,7 @@ export default {
         this.$message.success('操作成功')
         this.dialogVisible = false
         this.$emit('success')
-      })
+      }).catch(() => {})
     }
   }
 }

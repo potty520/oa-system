@@ -17,6 +17,7 @@ public interface IOaReimbursementService extends IService<OaReimbursement> {
     int submitOaReimbursement(Long reimbId);
     int withdrawOaReimbursement(Long reimbId);
     int approveOaReimbursement(OaReimbursement reimbursement);
+    int payOaReimbursement(Long reimbId);
     List<OaReimbursementDetail> getReimbursementDetails(Long reimbId);
     List<OaReimbursementApproveLog> getApproveLogs(Long reimbId);
 }
