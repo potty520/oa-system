@@ -32,12 +32,37 @@ function Invoke-Api {
         $params.ContentType = 'application/json; charset=utf-8'
         $params.Body = [System.Text.Encoding]::UTF8.GetBytes(($Body | ConvertTo-Json -Depth 12 -Compress))
     }
-    $resp = Invoke-WebRequest @params
-    # 响应同样必须自己按 UTF-8 解码：Spring 返回的 Content-Type 不带 charset，
-    # 而 Windows PowerShell 5.1 在缺少 charset 时会退回 ISO-8859-1，中文变乱码，
-    # 于是“按中文名新建后再比对名字”这类断言会失败。
-    $json = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
-    return ($json | ConvertFrom-Json)
+    try {
+        $resp = Invoke-WebRequest @params
+        # 响应同样必须自己按 UTF-8 解码：Spring 返回的 Content-Type 不带 charset，
+        # 而 Windows PowerShell 5.1 在缺少 charset 时会退回 ISO-8859-1，中文变乱码。
+        $json = [System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray())
+        return ($json | ConvertFrom-Json)
+    } catch {
+        # 4xx/5xx 会被 Invoke-WebRequest 抛成异常。合成与成功响应同形的对象，
+        # 让断言仍能用 code（HTTP 状态码，或响应体里的 code）与 msg 做判断。
+        return (ConvertFrom-ErrorResponse $_)
+    }
+}
+
+# 统一的错误响应解析：优先取响应体里的 code（服务端会给出 JSON），否则用 HTTP 状态码。
+function ConvertFrom-ErrorResponse($err) {
+    $status = 0
+    $text = $err.Exception.Message
+    try {
+        $status = [int]$err.Exception.Response.StatusCode
+        $stream = $err.Exception.Response.GetResponseStream()
+        if ($stream) {
+            $sr = New-Object System.IO.StreamReader($stream, [System.Text.Encoding]::UTF8)
+            $bodyText = $sr.ReadToEnd()
+            if ($bodyText) { $text = $bodyText }
+        }
+    } catch {}
+    try {
+        $obj = $text | ConvertFrom-Json
+        if ($obj -and $obj.code) { return $obj }
+    } catch {}
+    return [pscustomobject]@{ code = $status; msg = $text }
 }
 
 $token = $null
@@ -47,17 +72,25 @@ try {
     $wrong = Invoke-Api 'Post' '/login' @{ username = 'admin'; password = 'wrong-password' }
     Assert-Test ($wrong.code -eq 400) '错误密码拒绝' $wrong.msg
 
-    try {
-        Invoke-Api 'Get' '/system/user/list?pageNum=1&pageSize=10' $null $null | Out-Null
-        Assert-Test $false '未登录访问拦截' 'anonymous request was accepted'
-    } catch {
-        $status = $_.Exception.Response.StatusCode.value__
-        Assert-Test ($status -in 401, 403) '未登录访问拦截' "HTTP $status"
-    }
+    # Invoke-Api 现在会捕获 HTTP 错误并返回同形对象（不再抛异常），因此直接看 code。
+    # 此前靠 catch 取 HTTP 状态码的写法在辅助函数改造后会把自己的断言失败吞掉，必须改掉。
+    $anon = Invoke-Api 'Get' '/system/user/list?pageNum=1&pageSize=10' $null $null
+    Assert-Test ($anon.code -in 401, 403) '未登录访问拦截' "code=$($anon.code)"
 
     $login = Invoke-Api 'Post' '/login' @{ username = 'admin'; password = $AdminPassword }
     Assert-Test ($login.code -eq 200 -and $login.data.token) '管理员登录' $login.data.userInfo.userName
     $token = $login.data.token
+
+    # 前置：启用中的流程会让"没带 flowId 的公文"在提交时被自动绑定并分派给流程角色，
+    # 使下面的"发文提交与签发"断言失真（环境问题，非产品缺陷）。临时停用，finally 里还原。
+    $ambientFlows = @()
+    $flowList = Invoke-Api 'Get' '/oa/docFlow/list?pageNum=1&pageSize=200' $null $token
+    foreach ($f in @($flowList.rows)) {
+        if ("$($f.status)" -eq '0') {
+            $ambientFlows += $f
+            Invoke-Api 'Put' '/oa/docFlow' @{ flowId = $f.flowId; flowName = $f.flowName; flowType = $f.flowType; status = '1' } $token | Out-Null
+        }
+    }
 
     $info = Invoke-Api 'Get' '/getInfo' $null $token
     Assert-Test ($info.code -eq 200 -and $info.data.user.userName -eq 'admin') '当前用户信息'
@@ -212,6 +245,10 @@ try {
         Assert-Test ($response.code -eq 200) ('核心列表 ' + $endpoint)
     }
 } finally {
+    # 还原环境里原有流程的启用状态
+    foreach ($f in @($ambientFlows)) {
+        Invoke-Api 'Put' '/oa/docFlow' @{ flowId = $f.flowId; flowName = $f.flowName; flowType = $f.flowType; status = '0' } $token | Out-Null
+    }
     if ($token) {
         try {
             if ($createdIds.flow) { Invoke-Api 'Delete' ("/oa/docFlow/" + $createdIds.flow) $null $token | Out-Null }

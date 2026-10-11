@@ -12,6 +12,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -22,8 +25,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public AjaxResult handleAccessDenied(AccessDeniedException ex) {
-        return AjaxResult.error(403, ex.getMessage());
+    public ResponseEntity<AjaxResult> handleAccessDenied(AccessDeniedException ex) {
+        // 响应体的 code 与 HTTP 状态码保持一致：此前只设 body code=403 而 HTTP 仍是 200，
+        // 网关、监控与客户端无法按协议判定"无权限"，只能解析响应体。
+        // 用 ResponseEntity 表达状态码，避免向异常处理方法注入 HttpServletResponse。
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(AjaxResult.error(403, ex.getMessage()));
     }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, BindException.class})

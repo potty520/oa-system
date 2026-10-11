@@ -12,11 +12,34 @@ function Api($method,$path,$body,$token) {
   if($token){$headers.Authorization='Bearer '+$token}
   $params=@{Uri=$BaseUrl+$path;Method=$method;Headers=$headers;TimeoutSec=10}
   if($null -ne $body){$params.ContentType='application/json; charset=utf-8';$params.Body=[System.Text.Encoding]::UTF8.GetBytes(($body|ConvertTo-Json -Depth 10 -Compress))}
-  Invoke-RestMethod @params
+  try {
+    Invoke-RestMethod @params
+  } catch {
+    # 4xx/5xx 会被 Invoke-RestMethod 抛成异常；优先取响应体里的 code，否则用 HTTP 状态码。
+    $status=0; $text=$_.Exception.Message
+    try {
+      $status=[int]$_.Exception.Response.StatusCode
+      $stream=$_.Exception.Response.GetResponseStream()
+      if($stream){ $sr=New-Object System.IO.StreamReader($stream,[System.Text.Encoding]::UTF8); $bt=$sr.ReadToEnd(); if($bt){$text=$bt} }
+    } catch {}
+    try { $o=$text|ConvertFrom-Json; if($o -and $o.code){ return $o } } catch {}
+    return [pscustomobject]@{code=$status;msg=$text}
+  }
 }
 $login=Api Post '/login' @{username='admin';password=$AdminPassword} $null
 if($login.code -ne 200){throw 'login failed'}
 $token=$login.data.token
+
+# 前置：启用中的流程会让"没带 flowId 的公文"在提交时被自动绑定并分派给流程角色，
+# 使本脚本的流程断言失真（环境问题，非产品缺陷）。临时停用，结束时还原。
+$ambientFlows=@()
+$flowList=Api Get '/oa/docFlow/list?pageNum=1&pageSize=200' $null $token
+foreach($f in @($flowList.rows)){
+  if("$($f.status)" -eq '0'){
+    $ambientFlows+=$f
+    Api Put '/oa/docFlow' @{flowId=$f.flowId;flowName=$f.flowName;flowType=$f.flowType;status='1'} $token|Out-Null
+  }
+}
 $incoming=Api Post '/oa/incomingDoc' @{docNumber="G6-IN-$suffix";docTitle="G6收文流程测试$suffix";sourceUnit='测试单位';receiveDate='2026-09-20';docLevel='1';docSecret='1';summary='流程测试';status='0'} $token
 $inList=Api Get ("/oa/incomingDoc/list?pageNum=1&pageSize=20&docNumber=G6-IN-$suffix") $null $token
 $inDoc=$inList.rows|Select-Object -First 1
@@ -54,4 +77,5 @@ $result=[pscustomobject]@{
   outgoingArchives=@($outTimeline.data.archives).Count;
   dashboardCode=$dashboard.code
 }
+foreach($f in $ambientFlows){ Api Put '/oa/docFlow' @{flowId=$f.flowId;flowName=$f.flowName;flowType=$f.flowType;status='0'} $token|Out-Null }
 $result|Format-List

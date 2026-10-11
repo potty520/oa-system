@@ -122,6 +122,17 @@ node tests\run-ui.js
 
 > `fulltest.py` 第 [10] 节会用 `bootstrap()` 记录下来的**当前真正生效的口令**登录，不再假设口令等于 `OA_INIT_* + '1'`。
 
+## 关于 403 的两个实现注意点（本项目实测）
+
+1. **异常处理方法不要注入 `HttpServletResponse` 再 `setStatus()`**：实测该写法会让
+   `ResponseEntity<FileSystemResource>` 的二进制下载返回 `Content-Length: 0`（附件下载断言失败）。
+   要统一 403 的 HTTP 状态码，请用 `ResponseEntity.status(HttpStatus.FORBIDDEN).body(...)` 返回。
+2. **所有断言 403 的脚本都要能处理"HTTP 错误"**：403 从「HTTP 200 + body code=403」改成真正的
+   HTTP 403 之后，`Invoke-WebRequest` / `Invoke-RestMethod` 会抛异常。
+   `api-smoke.ps1` / `phase1-smoke.ps1` / `phase2-exhaustive.ps1` 的请求辅助函数都已捕获异常并
+   把 HTTP 状态码作为 `code` 返回；**不要再用 `try { Invoke-Api ... } catch { $_.Exception.Response }`
+   这种写法**——辅助函数改造后它会把断言自身的失败异常也吞掉，错误信息变成空的。
+
 ## PowerShell 5.1 踩坑清单（本项目实测）
 
 1. **`.ps1` 必须带 UTF-8 BOM**，否则 5.1 按 ANSI 解析，中文注释/字符串会乱码甚至语法错误。

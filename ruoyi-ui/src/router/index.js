@@ -16,6 +16,12 @@ export const constantRoutes = [
     hidden: true
   },
   {
+    // 直接输入地址访问无权限页面时由路由守卫重定向到这里（侧边栏本就不显示这些菜单）
+    path: '/403',
+    component: () => import('../views/error/403'),
+    hidden: true
+  },
+  {
     // TagsView“刷新页面”跳到这里，由组件立刻 replace 回原地址，用于重建页面组件
     path: '/redirect',
     component: Layout,
