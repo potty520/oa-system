@@ -157,7 +157,9 @@ export default {
 .login-container {
   min-height: 100%;
   width: 100%;
-  background: linear-gradient(150deg, #e0f2fe 0%, #f8fafc 100%);
+  /* 登录页背景插画（手写 SVG，与配色规范同源；矢量自适应任意分辨率）
+     内容为大号柔和极光色块 + 漂浮的「公文卡片」装饰，中间留白保证白卡可读。 */
+  background: url('~@/assets/login-bg.svg') center center / cover no-repeat, #f8fafc;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -170,7 +172,7 @@ export default {
     overflow: hidden;
     background: #fff;
     border-radius: 8px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    box-shadow: 0 18px 46px rgba(15, 23, 42, 0.12);
   }
 
   .svg-container {
