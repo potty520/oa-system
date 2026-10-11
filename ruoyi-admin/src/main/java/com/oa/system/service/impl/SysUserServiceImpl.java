@@ -1,5 +1,6 @@
 package com.oa.system.service.impl;
 
+import com.oa.common.exception.BusinessAccessDeniedException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oa.common.constant.Constants;
@@ -267,10 +268,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             return;
         }
         if (targetUserId != null && targetUserId == BUILT_IN_ADMIN_USER_ID) {
-            throw new AccessDeniedException("不能操作内置超级管理员账号");
+            throw new BusinessAccessDeniedException("不能操作内置超级管理员账号");
         }
         if (roleIds != null && roleIds.contains(BUILT_IN_ADMIN_ROLE_ID)) {
-            throw new AccessDeniedException("不能授予内置超级管理员角色");
+            throw new BusinessAccessDeniedException("不能授予内置超级管理员角色");
         }
     }
 

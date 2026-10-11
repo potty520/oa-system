@@ -1,5 +1,6 @@
 package com.oa.oa.service.impl;
 
+import com.oa.common.exception.BusinessAccessDeniedException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
@@ -199,11 +200,11 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
         }
         Long current = SecurityUtils.getUserId();
         if (!SecurityUtils.isAdmin(current) && current != null && current.equals(existing.getUserId())) {
-            throw new AccessDeniedException("不能审批自己提交的报销单");
+            throw new BusinessAccessDeniedException("不能审批自己提交的报销单");
         }
         // 只能审批落在本人数据范围内的报销单，口径与列表接口完全一致
         if (!inDataScope(existing)) {
-            throw new AccessDeniedException("无权审批该报销单");
+            throw new BusinessAccessDeniedException("无权审批该报销单");
         }
 
         Date now = new Date();
@@ -248,10 +249,10 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
         // 并且保留“不能给自己提交的单据付款”的职责分离规则，管理员仍然豁免
         Long current = SecurityUtils.getUserId();
         if (!SecurityUtils.isAdmin(current) && current != null && current.equals(existing.getUserId())) {
-            throw new AccessDeniedException("不能给自己提交的报销单付款");
+            throw new BusinessAccessDeniedException("不能给自己提交的报销单付款");
         }
         if (!inDataScope(existing)) {
-            throw new AccessDeniedException("无权付款该报销单");
+            throw new BusinessAccessDeniedException("无权付款该报销单");
         }
 
         // 支付状态与支付时间只由服务端写入；接口不接收请求体（只有路径参数），
@@ -278,7 +279,7 @@ public class OaReimbursementServiceImpl extends ServiceImpl<OaReimbursementMappe
         if (AccessGuards.isSelfOrAdmin(reimbursement.getUserId()) || inDataScope(reimbursement)) {
             return;
         }
-        throw new AccessDeniedException("无权查看该报销单");
+        throw new BusinessAccessDeniedException("无权查看该报销单");
     }
 
     /** 该记录是否落在当前登录用户的数据范围内。 */

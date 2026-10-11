@@ -1,6 +1,7 @@
 package com.oa.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.oa.common.utils.ClientIpUtils;
 import com.oa.security.utils.SecurityUtils;
 import com.oa.system.domain.SysOperLog;
 import com.oa.system.mapper.SysOperLogMapper;
@@ -94,16 +95,7 @@ public class OperationLogAspect {
     }
 
     private String resolveClientIp(HttpServletRequest request) {
-        if (trustForwardedHeaders) {
-            String forwardedFor = request.getHeader("X-Forwarded-For");
-            if (forwardedFor != null && !forwardedFor.trim().isEmpty()) {
-                String clientIp = forwardedFor.split(",")[0].trim();
-                if (!clientIp.isEmpty()) {
-                    return truncate(clientIp, 128);
-                }
-            }
-        }
-        return request.getRemoteAddr();
+        return ClientIpUtils.resolve(request, trustForwardedHeaders);
     }
 
     private String serializeArgs(Object[] args) {

@@ -838,6 +838,16 @@ chk("部门经理也无系统用户管理权限", code_of(b) != 200, "code=%s" %
 st, b, _ = call("GET", "/oa/docFlow/list", token=TOK["lisi"])
 chk("部门经理可读流程配置（种子授权）", code_of(b) == 200, "code=%s" % code_of(b))
 
+# 越权文案必须固定：此前直接回显 Spring Security 的本地化 message，
+# 会随 Accept-Language 在"不允许访问"/"Access is denied"之间漂移（英文原文外泄）。
+st, b, _ = call("GET", "/system/user/list", token=TOK["zhangsan"])
+chk("越权提示为固定中文文案（不随语言漂移）", msg_of(b) == "没有操作权限", "msg=%s" % msg_of(b))
+# @PreAuthorize 的判定发生在控制器之前，日志切面不会执行；越权必须由异常处理补记审计。
+st, b, _ = call("GET", "/system/log/list", params={"pageNum": 1, "pageSize": 50, "title": "AccessDenied"},
+                token=TOK["admin"])
+denied = [r for r in rows_of(b) if r.get("operUrl") == "/system/user/list" and str(r.get("status")) == "1"]
+chk("越权访问写入审计日志（status=1）", len(denied) >= 1, "命中 %d 条" % len(denied))
+
 # ============================================================ 10. 登出
 sec("[10] 登出与令牌吊销")
 tmp = login("zhangsan", PWD.get("zhangsan") or NEW["zhangsan"])

@@ -1,5 +1,6 @@
 package com.oa.oa.service.impl;
 
+import com.oa.common.exception.BusinessAccessDeniedException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oa.oa.domain.OaSchedule;
@@ -68,7 +69,7 @@ public class OaScheduleServiceImpl extends ServiceImpl<OaScheduleMapper, OaSched
         dataScopeResolver.apply(wrapper, OaSchedule::getUserId, null);
         Long count = baseMapper.selectCount(wrapper);
         if (count == null || count == 0) {
-            throw new AccessDeniedException("无权查看该日程");
+            throw new BusinessAccessDeniedException("无权查看该日程");
         }
     }
 

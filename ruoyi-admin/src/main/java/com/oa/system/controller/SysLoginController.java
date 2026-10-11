@@ -128,10 +128,10 @@ public class SysLoginController {
     @PostMapping("/register")
     public AjaxResult register(@RequestBody SysUser user) {
         if (StringUtils.isEmpty(user.getUsername()) || StringUtils.isEmpty(user.getPassword())) {
-            return AjaxResult.error("用户名和密码不能为空");
+            return AjaxResult.error(400, "用户名和密码不能为空");
         }
         if (userService.selectSysUserByUsername(user.getUsername()) != null) {
-            return AjaxResult.error("用户名已存在");
+            return AjaxResult.error(400, "用户名已存在");
         }
         user.setStatus("0");
         if (user.getDeptId() == null) {

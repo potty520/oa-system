@@ -1,5 +1,6 @@
 package com.oa.security.utils;
 
+import com.oa.common.exception.BusinessAccessDeniedException;
 import org.springframework.security.access.AccessDeniedException;
 
 /**
@@ -23,7 +24,7 @@ public final class AccessGuards {
     /** 归属校验失败时抛出 403，由 GlobalExceptionHandler 统一转成响应。 */
     public static void requireSelfOrAdmin(Long ownerUserId, String resource) {
         if (!isSelfOrAdmin(ownerUserId)) {
-            throw new AccessDeniedException("无权操作他人的" + resource);
+            throw new BusinessAccessDeniedException("无权操作他人的" + resource);
         }
     }
 }

@@ -64,7 +64,7 @@ public class OaDocumentController extends BaseController {
     public AjaxResult upload(@RequestParam("file") MultipartFile file,
                              @RequestParam(value = "documentType", required = false) String documentType) throws Exception {
         if (file == null || file.isEmpty()) {
-            return AjaxResult.error("请选择文件");
+            return AjaxResult.error(400, "请选择文件");
         }
         Path base = Paths.get(uploadPath).toAbsolutePath().normalize();
         Files.createDirectories(base);
@@ -80,7 +80,7 @@ public class OaDocumentController extends BaseController {
         }
         Path target = base.resolve(UUID.randomUUID().toString().replace("-", "") + suffix).normalize();
         if (!target.startsWith(base)) {
-            return AjaxResult.error("非法文件路径");
+            return AjaxResult.error(400, "非法文件路径");
         }
         file.transferTo(target.toFile());
         OaDocument document = new OaDocument();

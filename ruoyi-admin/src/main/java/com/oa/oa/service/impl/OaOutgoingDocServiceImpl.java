@@ -1,5 +1,6 @@
 package com.oa.oa.service.impl;
 
+import com.oa.common.exception.BusinessAccessDeniedException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.oa.oa.domain.DocActionRequest;
@@ -169,7 +170,7 @@ public class OaOutgoingDocServiceImpl extends ServiceImpl<OaOutgoingDocMapper, O
     /** 单份发文的读取与变更权限，口径与列表数据范围、办理过程读取一致 */
     private void requireEntitled(Long docId) {
         if (!docProcessService.isDocumentEntitled(DOC_OUTGOING, docId)) {
-            throw new AccessDeniedException("无权查看或操作该发文");
+            throw new BusinessAccessDeniedException("无权查看或操作该发文");
         }
     }
 
@@ -180,7 +181,7 @@ public class OaOutgoingDocServiceImpl extends ServiceImpl<OaOutgoingDocMapper, O
         }
         SysUser signer = userMapper.selectById(signUserId);
         if (signer != null && creator.equals(signer.getUsername())) {
-            throw new AccessDeniedException("签发人不能是发文起草人本人，请另行指定签发人");
+            throw new BusinessAccessDeniedException("签发人不能是发文起草人本人，请另行指定签发人");
         }
     }
 

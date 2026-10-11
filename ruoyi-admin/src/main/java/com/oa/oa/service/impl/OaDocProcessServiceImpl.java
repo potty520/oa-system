@@ -1,5 +1,6 @@
 package com.oa.oa.service.impl;
 
+import com.oa.common.exception.BusinessAccessDeniedException;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.oa.oa.domain.*;
 import com.oa.oa.mapper.*;
@@ -147,7 +148,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 }
                 // 只能撤分配给自己的待办签批，否则任何参与人都能把别人的签批改成“已撤签”
                 if (!SecurityUtils.isAdmin(user.getUserId()) && !Objects.equals(approval.getUserId(), user.getUserId())) {
-                    throw new AccessDeniedException("只能撤回分配给自己的签批");
+                    throw new BusinessAccessDeniedException("只能撤回分配给自己的签批");
                 }
                 if (approvalMapper.approveIfPending(approval.getApprovalId(), "8",
                         StringUtils.defaultIfBlank(request.getOpinion(), "已撤签"), user.getUsername()) != 1) {
@@ -322,7 +323,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 .orderByDesc(OaDocApproval::getApprovalId));
         OaDocApproval assignment = assignments.isEmpty() ? null : assignments.get(0);
         if (assignment == null) {
-            throw new AccessDeniedException("当前流程步骤未分配给该用户");
+            throw new BusinessAccessDeniedException("当前流程步骤未分配给该用户");
         }
         // 条件更新：同一步骤的其他处理人可能刚刚已经办完，必须确认记录仍是待办状态
         if (approvalMapper.approveIfPending(assignment.getApprovalId(), signing ? "2" : "1",
@@ -519,7 +520,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
                 && isPendingApprover(docType, docId, user.getUserId())) {
             return;
         }
-        throw new AccessDeniedException("当前用户无权处理该公文");
+        throw new BusinessAccessDeniedException("当前用户无权处理该公文");
     }
 
     private boolean isCreator(String docType, Long docId, String username) {
@@ -575,7 +576,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
         com.oa.system.domain.SysUser signer = userMapper.selectById(doc.getSignUserId());
         if (signer != null && StringUtils.isNotBlank(doc.getCreateBy())
                 && doc.getCreateBy().equals(signer.getUsername())) {
-            throw new AccessDeniedException("签发人不能是起草人本人，请另行指定签发人");
+            throw new BusinessAccessDeniedException("签发人不能是起草人本人，请另行指定签发人");
         }
     }
 
@@ -729,7 +730,7 @@ public class OaDocProcessServiceImpl implements IOaDocProcessService {
      */
     private void requireDocumentAccess(String docType, Long docId) {
         if (!isDocumentEntitled(docType, docId)) {
-            throw new AccessDeniedException("无权查看该公文的办理过程");
+            throw new BusinessAccessDeniedException("无权查看该公文的办理过程");
         }
     }
 
