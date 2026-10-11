@@ -1,6 +1,7 @@
 import Vue from 'vue'
 import ElementUI from 'element-ui'
-import 'element-ui/lib/theme-chalk/index.css'
+// 引入自定义主题（内含 Element 源码），主色见 assets/styles/element-variables.scss
+import './assets/styles/element-variables.scss'
 import App from './App.vue'
 import Pagination from '@/components/Pagination'
 import directive from './directive'

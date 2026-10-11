@@ -98,3 +98,49 @@ div:focus {
 .breadcrumb-leave-active {
   position: absolute;
 }
+
+/* ---------------------------------------------------------------- 外观（配色）
+   页面底色 / 卡片 / 表格：Element 默认的纯白直角在长列表里偏硬，这里统一柔化。
+   品牌色本身由 element-variables.scss 的 $--color-primary 统一控制。 */
+body {
+  background-color: #f4f6fb;
+}
+
+.el-card,
+.el-dialog,
+.el-message-box {
+  border-radius: 8px;
+}
+
+.el-card {
+  border: 1px solid #e8edf6;
+  box-shadow: 0 1px 2px rgba(23, 43, 77, 0.04), 0 6px 16px rgba(23, 43, 77, 0.05);
+}
+
+.el-table th.el-table__cell {
+  background-color: #f7f9fc !important;
+  color: #40506b;
+  font-weight: 600;
+}
+
+.el-table td.el-table__cell,
+.el-table th.el-table__cell.is-leaf {
+  border-bottom-color: #eef2f8;
+}
+
+.el-table--border,
+.el-table--group {
+  border-color: #eef2f8;
+}
+
+.el-tag {
+  border-radius: 4px;
+}
+
+.el-button--primary {
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.24);
+}
+
+.el-pagination.is-background .el-pager li:not(.disabled).active {
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.24);
+}

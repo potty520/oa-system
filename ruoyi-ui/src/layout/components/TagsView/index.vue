@@ -212,9 +212,9 @@ export default {
       }
 
       &.active {
-        background-color: #409eff;
+        background-color: #2563eb;
         color: #fff;
-        border-color: #409eff;
+        border-color: #2563eb;
 
         &::before {
           content: '';

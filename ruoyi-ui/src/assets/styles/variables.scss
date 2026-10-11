@@ -1,8 +1,9 @@
-$menuBg: #304156;
-$menuText: #bfcbd9;
-$menuActiveText: #409eff;
-$subMenuBg: #1f2d3d;
-$subMenuHover: #001528;
+// 侧边栏配色：与主色 #2563eb 同族的深海军蓝，替代 Element 默认的蓝灰 #304156
+$menuBg: #1b2740;
+$menuText: #a9b8d0;
+$menuActiveText: #7aa2ff;
+$subMenuBg: #141e33;
+$subMenuHover: #26314d;
 $sideBarWidth: 210px;
 
 :export {

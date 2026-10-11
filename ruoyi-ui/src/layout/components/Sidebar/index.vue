@@ -48,9 +48,9 @@ export default {
     },
     variables() {
       return {
-        menuBg: '#304156',
-        menuText: '#bfcbd9',
-        menuActiveText: '#409eff'
+        menuBg: '#1b2740',
+        menuText: '#a9b8d0',
+        menuActiveText: '#7aa2ff'
       }
     }
   }

@@ -204,7 +204,7 @@ export default {
       font-size: 14px;
 
       &:hover {
-        color: #409eff;
+        color: #2563eb;
         background: rgba(0, 0, 0, 0.025);
       }
 

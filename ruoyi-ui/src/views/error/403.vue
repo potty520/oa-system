@@ -32,7 +32,7 @@ export default {
 .err-title {
   font-size: 120px;
   font-weight: bold;
-  color: #409eff;
+  color: #2563eb;
   margin: 0;
   line-height: 1;
 }

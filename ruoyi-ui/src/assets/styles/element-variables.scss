@@ -1,0 +1,13 @@
+// Element UI 主题变量（必须在引入 Element 源码之前覆盖，否则不生效）
+// 主色：原先沿用 Element 默认的 #409EFF，这里换成更沉稳、对比更清晰的蓝。
+// 字体图标路径：主题源码里的 @font-face 用的是相对路径 'fonts'，从 src 下引入时
+// webpack 解析不到 node_modules 里的 element-icons.woff，必须显式指向字体目录。
+$--font-path: '~element-ui/lib/theme-chalk/fonts';
+
+$--color-primary: #2563eb;
+
+// 圆角略收，配合下方卡片阴影，整体更现代
+$--border-radius-base: 6px;
+$--border-radius-small: 4px;
+
+@import '~element-ui/packages/theme-chalk/src/index';

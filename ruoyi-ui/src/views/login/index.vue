@@ -157,7 +157,7 @@ export default {
 .login-container {
   min-height: 100%;
   width: 100%;
-  background-color: #2d3a4b;
+  background: linear-gradient(150deg, #1b2740 0%, #0f1729 100%);
   display: flex;
   justify-content: center;
   align-items: center;
