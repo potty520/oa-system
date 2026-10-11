@@ -1,9 +1,10 @@
-// 侧边栏配色：与主色 #2563eb 同族的深海军蓝，替代 Element 默认的蓝灰 #304156
-$menuBg: #1b2740;
-$menuText: #a9b8d0;
-$menuActiveText: #7aa2ff;
-$subMenuBg: #141e33;
-$subMenuHover: #26314d;
+// 侧边栏：浅色扁平风，与"卡片式 + 大量留白"的整体风格一致。
+// 选中态 = 辅助色 #E0F2FE 作底 + 主色 #0EA5E9 作字（另见 index.scss 的左侧指示条）。
+$menuBg: #ffffff;
+$menuText: #64748b;
+$menuActiveText: #0ea5e9;
+$subMenuBg: #f8fafc;
+$subMenuHover: #e0f2fe;
 $sideBarWidth: 210px;
 
 :export {

@@ -157,7 +157,7 @@ export default {
 .login-container {
   min-height: 100%;
   width: 100%;
-  background: linear-gradient(150deg, #1b2740 0%, #0f1729 100%);
+  background: linear-gradient(150deg, #e0f2fe 0%, #f8fafc 100%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -170,12 +170,12 @@ export default {
     overflow: hidden;
     background: #fff;
     border-radius: 8px;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
   }
 
   .svg-container {
     padding: 6px 5px 6px 15px;
-    color: #889aa4;
+    color: #64748b;
     vertical-align: middle;
     width: 30px;
     display: inline-block;
@@ -186,7 +186,7 @@ export default {
 
     .title {
       font-size: 26px;
-      color: #303133;
+      color: #0f172a;
       margin: 0px auto 30px auto;
       text-align: center;
       font-weight: bold;
@@ -198,7 +198,7 @@ export default {
     right: 10px;
     top: 3px;
     font-size: 16px;
-    color: #889aa4;
+    color: #64748b;
     cursor: pointer;
     user-select: none;
   }

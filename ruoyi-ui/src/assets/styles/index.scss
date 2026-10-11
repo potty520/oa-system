@@ -100,47 +100,83 @@ div:focus {
 }
 
 /* ---------------------------------------------------------------- 外观（配色）
-   页面底色 / 卡片 / 表格：Element 默认的纯白直角在长列表里偏硬，这里统一柔化。
-   品牌色本身由 element-variables.scss 的 $--color-primary 统一控制。 */
+   规范：主色 #0EA5E9 ／ 辅助色 #E0F2FE ／ 强调色 #F43F5E
+   背景 #F8FAFC ／ 卡片 #FFFFFF ／ 文字 #0F172A · #64748B
+   主色由 element-variables.scss 统一控制，这里只做表面质感与浅色侧边栏。 */
 body {
-  background-color: #f4f6fb;
+  background-color: #f8fafc;
+  color: #0f172a;
 }
 
 .el-card,
 .el-dialog,
 .el-message-box {
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .el-card {
-  border: 1px solid #e8edf6;
-  box-shadow: 0 1px 2px rgba(23, 43, 77, 0.04), 0 6px 16px rgba(23, 43, 77, 0.05);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .el-table th.el-table__cell {
-  background-color: #f7f9fc !important;
-  color: #40506b;
+  background-color: #f8fafc !important;
+  color: #64748b;
   font-weight: 600;
 }
 
 .el-table td.el-table__cell,
 .el-table th.el-table__cell.is-leaf {
-  border-bottom-color: #eef2f8;
+  border-bottom-color: #eef2f6;
 }
 
 .el-table--border,
 .el-table--group {
-  border-color: #eef2f8;
+  border-color: #eef2f6;
+}
+
+.el-table--enable-row-hover .el-table__body tr:hover > td.el-table__cell {
+  background-color: #e0f2fe;
 }
 
 .el-tag {
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .el-button--primary {
-  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.24);
+  box-shadow: 0 1px 2px rgba(14, 165, 233, 0.24);
 }
 
 .el-pagination.is-background .el-pager li:not(.disabled).active {
-  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.24);
+  box-shadow: 0 1px 2px rgba(14, 165, 233, 0.24);
+}
+
+/* 浅色侧边栏：右侧分割线 + 选中项辅助色底 + 左侧主色指示条 */
+.sidebar-container {
+  border-right: 1px solid #e2e8f0;
+
+  .el-menu-item {
+    position: relative;
+  }
+
+  .el-menu-item.is-active,
+  .el-submenu.is-active > .el-submenu__title {
+    background-color: #e0f2fe !important;
+    color: #0ea5e9 !important;
+  }
+
+  .el-menu-item.is-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: #0ea5e9;
+  }
+
+  .el-menu-item:hover,
+  .el-submenu__title:hover {
+    background-color: #e0f2fe !important;
+  }
 }

@@ -47,5 +47,5 @@ export default {
 .dashboard-container { padding: 20px; }
 .welcome-section { background: #fff; padding: 20px; border-radius: 4px; margin-bottom: 20px; box-shadow: 0 2px 12px rgba(0,0,0,.1); h2 { margin: 0 0 10px; } p { margin: 0; color: #606266; } }
 .card-row { margin-bottom: 20px; }
-.stat { text-align: center; padding: 12px 0; .number { font-size: 30px; font-weight: bold; color: #303133; } .label { margin-top: 8px; color: #909399; } }
+.stat { text-align: center; padding: 12px 0; .number { font-size: 30px; font-weight: bold; color: #0f172a; } .label { margin-top: 8px; color: #64748b; } }
 </style>

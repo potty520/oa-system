@@ -1,13 +1,30 @@
 // Element UI 主题变量（必须在引入 Element 源码之前覆盖，否则不生效）
-// 主色：原先沿用 Element 默认的 #409EFF，这里换成更沉稳、对比更清晰的蓝。
-// 字体图标路径：主题源码里的 @font-face 用的是相对路径 'fonts'，从 src 下引入时
-// webpack 解析不到 node_modules 里的 element-icons.woff，必须显式指向字体目录。
+// 字体图标路径：主题源码的 @font-face 用相对路径 'fonts'，从 src 引入时 webpack 解析不到
+// node_modules 里的 element-icons.woff，必须显式指向字体目录。
 $--font-path: '~element-ui/lib/theme-chalk/fonts';
 
-$--color-primary: #2563eb;
+/* ------------------------------------------------ 配色规范
+   主色   青蓝 #0EA5E9（比传统深蓝更轻盈，界面不沉闷）
+   强调色 玫红 #F43F5E（映射到 Element 的 danger 语义：删除、错误、必填星号等）
+   文字   #0F172A 主 / #64748B 次
+   背景   #F8FAFC，卡片 #FFFFFF
+   辅助色 #E0F2FE（选中/悬停底色，见 index.scss 与 variables.scss） */
+$--color-primary: #0ea5e9;
+$--color-danger: #f43f5e;
 
-// 圆角略收，配合下方卡片阴影，整体更现代
-$--border-radius-base: 6px;
-$--border-radius-small: 4px;
+$--color-text-primary: #0f172a;
+$--color-text-regular: #475569;
+$--color-text-secondary: #64748b;
+$--color-text-placeholder: #94a3b8;
+
+$--border-color-base: #e2e8f0;
+$--border-color-light: #eef2f6;
+$--border-color-lighter: #f1f5f9;
+
+$--background-color-base: #f8fafc;
+
+// 扁平卡片式：统一圆角
+$--border-radius-base: 8px;
+$--border-radius-small: 6px;
 
 @import '~element-ui/packages/theme-chalk/src/index';
