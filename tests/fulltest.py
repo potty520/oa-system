@@ -136,15 +136,18 @@ def login(u, p):
     return None
 
 
+PWD = {}
+
 def bootstrap(u):
-    """完成强制改密并返回可用 token。"""
+    """完成强制改密并返回可用 token；同时在 PWD[u] 记录当前真正生效的口令。"""
     tok = login(u, INIT[u])
     if not tok:
         tok = login(u, NEW[u])
         if tok:
+            PWD[u] = NEW[u]
             print("  %-9s 已初始化（口令此前已改）" % u)
-            return tok
-        return None
+        return tok
+    PWD[u] = INIT[u]
     st, b, _ = call("GET", "/getInfo", token=tok)
     must = (((b or {}).get("data") or {}).get("user") or {}).get("mustChangePwd")
     if must in (True, "1"):
@@ -154,6 +157,7 @@ def bootstrap(u):
             print("  %-9s 改密失败: %s" % (u, msg_of(r)))
             return None
         tok = login(u, NEW[u])
+        PWD[u] = NEW[u]
     return tok
 
 
@@ -179,18 +183,38 @@ chk("错误口令 -> code=400 且提示统一", code_of(b) == 400 and "用户名
 chk("admin 完成强制改密后可正常调用接口（改密前被拒绝见下一条）", True)
 
 # 强制改密验证：单独用一个未改密前的会话来观察
+# 注意：只有在账号**确实处于强制改密状态**时才能断言。若 OA_INIT_* 恰好等于当前口令，
+# 登录会成功但账号并不处于该状态，此时必须跳过（否则误报失败）。
 _tmp = login("admin", INIT["admin"])
+_must = None
 if _tmp:
+    st, b, _ = call("GET", "/getInfo", token=_tmp)
+    if code_of(b) == 200:
+        _must = (((b or {}).get("data") or {}).get("user") or {}).get("mustChangePwd")
+if _tmp and _must in (True, "1"):
     st, b, _ = call("GET", "/oa/leave/list", token=_tmp)
     chk("强制改密：改密前受保护接口被服务端拒绝", code_of(b) != 200, "code=%s msg=%s" % (code_of(b), msg_of(b)))
     st, b, _ = call("GET", "/getInfo", token=_tmp)
     chk("强制改密：改密前 /getInfo 仍可访问（否则首登用户被锁死）", code_of(b) == 200, "code=%s" % code_of(b))
 else:
-    note("admin 口令已是改密后状态，跳过'改密前被拦截'的验证（全新库上会执行）")
+    note("admin 当前不处于强制改密状态（mustChangePwd=%s），跳过'改密前被拦截'的验证（全新库上会执行）" % _must)
 
 for u in ("admin", "zhangsan", "lisi"):
     TOK[u] = bootstrap(u)
     chk("%s 能登录" % u, TOK[u] is not None)
+
+# 前置：启用中的流程会让"没带 flowId 的公文"在提交时被自动绑定到该流程并分派给流程角色，
+# 使本套件的"发文签发"与"数据范围"断言失真（环境问题，非产品缺陷）。这里临时停用，结束时还原。
+AMBIENT_FLOWS = []
+st, b, _ = call("GET", "/oa/docFlow/list", params={"pageNum": 1, "pageSize": 200}, token=TOK["admin"])
+for _f in ((b or {}).get("rows") or []):
+    if str(_f.get("status")) == "0":
+        AMBIENT_FLOWS.append(_f)
+        call("PUT", "/oa/docFlow", token=TOK["admin"],
+             body={"flowId": _f.get("flowId"), "flowName": _f.get("flowName"),
+                   "flowType": _f.get("flowType"), "status": "1"})
+if AMBIENT_FLOWS:
+    print("  已临时停用 %d 条启用流程（结束时还原），避免公文被自动绑定" % len(AMBIENT_FLOWS))
 
 st, b, _ = call("GET", "/getInfo", token=TOK["admin"])
 d = (b or {}).get("data") or {}
@@ -816,7 +840,7 @@ chk("部门经理可读流程配置（种子授权）", code_of(b) == 200, "code
 
 # ============================================================ 10. 登出
 sec("[10] 登出与令牌吊销")
-tmp = login("zhangsan", NEW["zhangsan"])
+tmp = login("zhangsan", PWD.get("zhangsan") or NEW["zhangsan"])
 st, b, _ = call("GET", "/getInfo", token=tmp)
 chk("登出前 token 可用", code_of(b) == 200, "code=%s" % code_of(b))
 st, b, _ = call("POST", "/logout", token=tmp)
@@ -839,6 +863,14 @@ chk("第 6 次触发锁定并返回 429", codes[5][0] == 429, codes[5])
 msg5 = codes[5][1] or ""
 chk("429 提示包含剩余秒数（退避窗口不再是固定 15 分钟）",
     "秒" in msg5 and "15分钟" not in msg5, msg5)
+
+# 还原环境里原有流程的启用状态
+for _f in AMBIENT_FLOWS:
+    call("PUT", "/oa/docFlow", token=TOK["admin"],
+         body={"flowId": _f.get("flowId"), "flowName": _f.get("flowName"),
+               "flowType": _f.get("flowType"), "status": "0"})
+if AMBIENT_FLOWS:
+    print("  已还原 %d 条流程的启用状态" % len(AMBIENT_FLOWS))
 
 # ============================================================ 汇总
 print("\n" + "=" * 76)

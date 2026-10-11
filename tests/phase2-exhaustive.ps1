@@ -66,6 +66,18 @@ $locked=Api Post '/login' @{username=$probeUser;password='wrong-password'} $null
 $dupUser=Api Post '/system/user' @{userName='admin';nickName='Duplicate';password='Test123456'} $token; Check '重复账号拦截' ($dupUser.code  -eq  409) $dupUser.msg
 $emptyUser=Api Post '/system/user' @{userName='';password=''} $token; Check '空用户数据拦截' ($emptyUser.code  -eq  400) $emptyUser.msg
 $emptyDoc=Api Post '/oa/incomingDoc' @{docNumber='';docTitle=''} $token; Check '空公文数据拦截' ($emptyDoc.code  -eq  400) $emptyDoc.msg
+# 前置：启用中的流程会让"没带 flowId 的公文"在提交时被自动绑定并分派给流程角色；
+# 多条启用流程还会让 findSingleActiveFlow 因歧义抛 400。这里临时停用并记录，结束时还原。
+$ambientFlows=@()
+$preFlows=Api Get '/oa/docFlow/list?pageNum=1&pageSize=200' $null $token
+foreach($f in @($preFlows.rows)){
+  if("$($f.status)" -eq '0'){
+    $ambientFlows+=$f
+    Api Put '/oa/docFlow' @{flowId=$f.flowId;flowName=$f.flowName;flowType=$f.flowType;status='1'} $token|Out-Null
+  }
+}
+if($ambientFlows.Count -gt 0){ Write-Host "INFO 已临时停用 $($ambientFlows.Count) 条启用流程（结束时还原）" }
+
 # Incoming workflow
 $inNum="P2-IN-$suffix"; $a=Api Post '/oa/incomingDoc' @{docNumber=$inNum;docTitle="P2收文$suffix";sourceUnit='测试单位';receiveDate='2026-09-20';docLevel='1';docSecret='1';summary='测试';status='0'} $token; Check '收文创建' ($a.code -eq  200)
 $inList=Api Get ("/oa/incomingDoc/list?pageNum=1&pageSize=20&docNumber=$inNum") $null $token; $inDoc=$inList.rows|Select-Object -First 1; $inId=$inDoc.docId
@@ -279,4 +291,6 @@ if($csFlowId){Api Delete ("/oa/docFlow/"+$csFlowId) $null $token|Out-Null}
 Api Delete ("/oa/incomingDoc/"+$inId) $null $token|Out-Null; Api Delete ("/oa/outgoingDoc/"+$outId) $null $token|Out-Null
 # 还原角色2（普通用户）的数据范围与菜单：前面把它依次改成过 scope 5/3/4/2 并临时加了菜单103，不还原会污染环境
 if($commonMenuIds){ Api Put '/system/role' @{roleId=2;roleName='普通用户';roleKey='common';roleSort=2;dataScope='5';deptIds=@();menuIds=@($commonMenuIds);status='0'} $token|Out-Null }
+foreach($f in $ambientFlows){ Api Put '/oa/docFlow' @{flowId=$f.flowId;flowName=$f.flowName;flowType=$f.flowType;status='0'} $token|Out-Null }
+if($ambientFlows.Count -gt 0){ Write-Host "INFO 已还原 $($ambientFlows.Count) 条流程的启用状态" }
 $results|Format-Table -AutoSize; $pass=@($results|Where-Object Result -eq 'PASS').Count; $fail=@($results|Where-Object Result -eq 'FAIL').Count; "SUMMARY PASS=$pass FAIL=$fail"
